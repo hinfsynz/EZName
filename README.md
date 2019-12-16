@@ -18,6 +18,7 @@ All candidate names are examined by their pinyin syllables. The difficulty of sy
 * Medium
 * High
 * Very High
+
 Only those names with easy-to-pronounce pinyin syllables for English speakers are selected.
 
 
