@@ -24,6 +24,7 @@ Only those names with easy-to-pronounce pinyin syllables for English speakers ar
 
 ## Usage
 > Python EZName.py -s 张 -g M -y 2020 -m 5 -d 9
+> Python EZName.oy -s 李 -g M -y 2020 -m 7 -d 3 -H 10
 ```
 
 
