@@ -13,7 +13,7 @@ class Canvas:
 
     def __init__(self, master):
 
-        self.calIcon = tk.PhotoImage(file='cal_icon_2.png').subsample(10)
+        self.calIcon = tk.PhotoImage(file='resource/cal_icon_2.png').subsample(10)
 
         self.labelDate = tk.Label(app, font=('Arial', 14, 'bold'), text='Pick your due date')
         self.labelDate.grid(column=0, row=1, pady=20)
