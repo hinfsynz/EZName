@@ -19,7 +19,7 @@ def find_syllable_difficulty(driver, pronunc_links):
         #time.sleep(2)
     return syllable_difficulties
 
-if __name__ == "__main__":
+def main():
     driver = webdriver.Chrome(executable_path=r"/Applications/chromedriver")
     httpaddr = 'https://resources.allsetlearning.com/chinese/pronunciation/syllable'
     driver.get(httpaddr)
@@ -49,3 +49,6 @@ if __name__ == "__main__":
         for syllable in syllable_difficulties:
             writer.writerow({col1:syllable, col2:syllable_difficulties[syllable]})
     driver.close()
+
+if __name__ == "__main__":
+    main()

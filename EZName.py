@@ -83,7 +83,7 @@ def compute_wuxing(year, month, day, hour):
 
 def name_score(name, sur_type=1):
     """
-    Get number of name from 1518.com
+    Get score of name from 1518.com
     :param name: full name
     :param sur_type: surname single(1) or double(2)
     :return: name score
@@ -272,6 +272,30 @@ def load_wuxing_dict():
         for row in reader:
             wuxing_dict[row['Word']] = row['Wuxing']
     return wuxing_dict
+
+def main(args):
+    signal.signal(signal.SIGINT, sigint_handler)
+
+    parser = argparse.ArgumentParser(description="Name children with birth datetime and WuXing balance.")
+    parser.add_argument("-s", metavar="surname", required=True, help="Surname.")
+    parser.add_argument("-g", metavar="gender", choices=('F', 'M'), required=True, help="Gender(F/M).")
+    parser.add_argument("-y", type=int, choices=range(1901, 2049), metavar="year", required=True,
+                        help="Year of birth date.")
+    parser.add_argument("-m", type=int, choices=range(1, 13), metavar="month", required=True,
+                        help="Month of birth date.")
+    parser.add_argument("-d", type=int, choices=range(1, 32), metavar="day", required=True,
+                        help="Day of birth date.")
+    parser.add_argument("-H", type=int, choices=range(0, 24), metavar="hour", required=False,
+                        help="Hour of birth datetime.")
+    args_tuple = parser.parse_known_args(args=args)
+
+    if args_tuple[0].H:
+        attr_list = output_wuxing(args_tuple[0].y, args_tuple[0].m, args_tuple[0].d, args_tuple[0].H)
+        select_name(args_tuple[0].s, args_tuple[0].g, args_tuple[0].H, attr_list)
+    else:  # no hour is specified, select names for all hours of that day
+        for hour in range(0, 24):
+            attr_list = output_wuxing(args_tuple[0].y, args_tuple[0].m, args_tuple[0].d, hour)
+            select_name(args_tuple[0].s, args_tuple[0].g, hour, attr_list)
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, sigint_handler)
