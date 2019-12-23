@@ -22,6 +22,15 @@ class Menu:
         self.menu = tk.Menu(master)
         master.config(menu=self.menu)
 
+        # add File menu
+        self.fileMenu = tk.Menu(self.menu)
+        self.menu.add_cascade(label='File', menu=self.fileMenu)
+        self.fileMenu.add_command(label='Import Names from File...',
+                                  command=self.importNamesFromFile)
+        self.fileMenu.add_command(label='Clear Names from List',
+                                  command=self.clearNamesFromList)
+        self.fileMenu.add_command(label='Save Names to My Favourite',
+                                  command=self.saveNamesToFavourite)
         # add Tools menu
         self.toolsMenu = tk.Menu(self.menu)
         self.menu.add_cascade(label='Tools', menu=self.toolsMenu)
@@ -101,6 +110,26 @@ class Menu:
     def segmentPoemWords(self):
         segment_poem.main()
 
+    def importNamesFromFile(self):
+        nameFile = td.askopenfilename(initialdir='./name/',title='Import A Name File',
+                                      filetypes=[('Baby Names File', '*.csv'), ('All Files', '*')])
+        with open(nameFile, 'r') as f:
+            for line in f:
+                if '//' in line: continue   # skip the commented out lines
+                name = line.split(',')[0].strip()
+                pinyin = line.split(',')[1].strip()
+                score = line.split(',')[2].strip()
+                if self.canvas:
+                    self.canvas.nameListBox.insert('', 'end', values=(name, pinyin, score))
+
+    def clearNamesFromList(self):
+        if self.canvas:
+            for i in self.canvas.nameListBox.get_children():
+                self.canvas.nameListBox.delete(i)
+
+    def saveNamesToFavourite(self):
+        pass
+
 
 class Canvas:
 
@@ -109,51 +138,58 @@ class Canvas:
         self.master = master
         self.calIcon = tk.PhotoImage(file='resource/cal_icon_2.png').subsample(10)
 
-        self.labelDate = tk.Label(master, font=('Arial', 14, 'bold'), text='Pick your due date')
+        self.background_image = tk.PhotoImage(file='resource/gui_bg.png')
+        self.background_label = tk.Label(master, image=self.background_image)
+        #self.background_label.place(x=0, y=0, relwidth=1, relheight=1)
+
+        self.inputFrame = tk.Frame(master)
+        self.inputFrame.grid(row=0, column=0)
+
+        self.labelDate = tk.Label(self.inputFrame, font=('Arial', 14, 'bold'), text='Pick your due date')
         self.labelDate.grid(column=0, row=1, pady=10)
 
-        self.labelMonth = tk.Label(master, text='Month')
+        self.labelMonth = tk.Label(self.inputFrame, text='Month')
         self.labelMonth.grid(column=0, row=2, sticky=tk.W)
-        self.labelDay = tk.Label(master, text='Day')
+        self.labelDay = tk.Label(self.inputFrame, text='Day')
         self.labelDay.grid(column=1, row=2, sticky=tk.W)
-        self.labelYear = tk.Label(master, text='Year')
+        self.labelYear = tk.Label(self.inputFrame, text='Year')
         self.labelYear.grid(column=2, row=2, sticky=tk.W)
-        self.labelCalendar = tk.Label(master, text='Calendar')
+        self.labelCalendar = tk.Label(self.inputFrame, text='Calendar')
         self.labelCalendar.grid(column=3, row=2, sticky=tk.W)
-        self.labelHour = tk.Label(master, text='Hour (Optional)')
+        self.labelHour = tk.Label(self.inputFrame, text='Hour (Optional)')
         self.labelHour.grid(column=4, row=2, sticky=tk.W)
 
+        self.today = datetime.date.today()
         # add a combobox for month selection
         self.months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
                   "November", "December"]
-        self.comboMonth = ttk.Combobox(master, height=10, width=7, values=self.months)
+        self.comboMonth = ttk.Combobox(self.inputFrame, height=10, width=7, values=self.months)
         self.comboMonth.grid(column=0, row=3, sticky=tk.W)
-        self.comboMonth.current(0)
+        self.comboMonth.set(self.months[self.today.month - 1])
 
         # add a combobox for year selection
-        self.today = datetime.date.today()
         years = [i for i in range(self.today.year, self.today.year + 5)]
-        self.comboYear = ttk.Combobox(master, height=20, width=5, values=years)
+        self.comboYear = ttk.Combobox(self.inputFrame, height=20, width=5, values=years)
         self.comboYear.grid(column=2, row=3, sticky=tk.W)
-        self.comboYear.current(0)
+        self.comboYear.set(self.today.year)
 
         # add a combobox for day selection
         monthdays = monthrange(int(self.comboYear.get()), self.months.index(self.comboMonth.get()) + 1)[1]
-        self.comboDay = ttk.Combobox(master, height=20, width=5, values=[i for i in range(1, monthdays + 1)])
+        self.comboDay = ttk.Combobox(self.inputFrame, height=20, width=5, values=[i for i in range(1, monthdays + 1)])
         self.comboDay.grid(column=1, row=3, sticky=tk.W)
-        self.comboDay.current(0)
+        self.comboDay.set(self.today.day)
 
         # add a combobox for hour selection
-        self.comboHour = ttk.Combobox(master, height=20, width=5, values=[i for i in range(0, 24)], state='disabled')
+        self.comboHour = ttk.Combobox(self.inputFrame, height=20, width=5, values=[i for i in range(0, 24)], state='disabled')
         self.comboHour.grid(column=4, row=3)
         self.comboHour.current(0)
 
         # add a radiobutton for lookup mode
-        self.lookupMode = tk.IntVar(master, 1)
+        self.lookupMode = tk.IntVar(self.inputFrame, 1)
         lookupModeValues = {"Fuzzy Mode": 1, "Exact Mode": 2}
         btnNum = 0
         for (text, value) in lookupModeValues.items():
-            self.btnModeSelect = tk.Radiobutton(master, text=text, variable=self.lookupMode, value=value, command=self.selectMode)
+            self.btnModeSelect = tk.Radiobutton(self.inputFrame, text=text, variable=self.lookupMode, value=value, command=self.selectMode)
             self.btnModeSelect.grid(column=5, row=3 + btnNum)
             btnNum += 1
 
@@ -161,35 +197,53 @@ class Canvas:
         self.comboDay.bind("<<ComboboxSelected>>", self.daySelectionCallback)
         self.comboYear.bind("<<ComboboxSelected>>", self.yearSelectionCallback)
         self.comboHour.bind("<<ComboboxSelected>>", self.hourSelectionCallback)
-        self.calBtn = ttk.Button(master, image=self.calIcon, command=self.popupCal, width=1)
+        self.calBtn = ttk.Button(self.inputFrame, image=self.calIcon, command=self.popupCal, width=1)
         self.calBtn.grid(column=3, row=3)
 
         # add a label and textbox for last name entry
-        self.lastNameLabel = tk.Label(master, font=('Arial', 14, 'bold'), text='Your last name')
+        self.lastNameLabel = tk.Label(self.inputFrame, font=('Arial', 14, 'bold'), text='Your last name')
         self.lastNameLabel.grid(column=0, row=5, pady=10)
-        self.lastNameEntry = tk.Entry(master, width=5)
+        self.lastNameEntry = tk.Entry(self.inputFrame, width=5)
         self.lastNameEntry.grid(column=1, row=5)
 
         # add a label and combobox for baby gender
-        self.genderLabel = tk.Label(master, text='Gender')
+        self.genderLabel = tk.Label(self.inputFrame, text='Gender')
         self.genderLabel.grid(column=2, row=5)
-        self.comboGender = ttk.Combobox(master, height=2, width=2, values=['M', 'F'])
+        self.comboGender = ttk.Combobox(self.inputFrame, height=2, width=2, values=['M', 'F'])
         self.comboGender.grid(column=3, row=5)
         self.comboGender.set('M')
 
 
         # add a checkbox to indicate if enable name scoring
-        self.enableNameScoring = tk.BooleanVar(master, True)
-        self.chkBtn = ttk.Checkbutton(master, variable=self.enableNameScoring, onvalue=True, offvalue=False,
+        self.enableNameScoring = tk.BooleanVar(self.inputFrame, True)
+        self.chkBtn = ttk.Checkbutton(self.inputFrame, variable=self.enableNameScoring, onvalue=True, offvalue=False,
                                       text='Get name score?', command=self.printNameScore)
         self.chkBtn.grid(column=0, row=6, pady=10)
 
         # add the run button
         self.style = ttk.Style()
         self.style.configure('my.TButton', font=('Arial', 16, 'bold'), foreground='green', background='black')
-        self.runBtn = ttk.Button(master, text='Find Names', style='my.TButton', width=10,
+        self.runBtn = ttk.Button(self.inputFrame, text='Find Names', style='my.TButton', width=10,
                                  command=self.findNames)
         self.runBtn.grid(column=1, row=6)
+
+        # add a tableview to show the found names
+        self.tableFrame = tk.Frame(master)
+        self.tableFrame.grid(row=1, columnspan=4)
+
+        # customize the treeview style
+        self.style.configure("mystyle.Treeview", highlightthickness=0, bd=0, font=('Calibri', 15))  # Modify the font of the body
+        self.style.configure("mystyle.Treeview.Heading", font=('Calibri', 13, 'bold'))  # Modify the font of the headings
+        self.style.layout("mystyle.Treeview", [('mystyle.Treeview.treearea', {'sticky': 'nswe'})])  # Remove the borders
+        self.labelTable = tk.Label(self.tableFrame, text="Found Names", font=("Arial", 20))
+        self.labelTable.grid(row=0, columnspan=3)
+        # create Treeview with 3 columns
+        self.tableCols = ('Name', 'Pinyin', 'Score')
+        self.nameListBox = ttk.Treeview(self.tableFrame, style='mystyle.Treeview', columns=self.tableCols, show='headings')
+        # set column headings
+        for col in self.tableCols:
+            self.nameListBox.heading(col, text=col)
+        self.nameListBox.grid(row=1, column=0, columnspan=2, sticky=tk.E)
 
     def findNames(self):
         lastName = self.lastNameEntry.get()
