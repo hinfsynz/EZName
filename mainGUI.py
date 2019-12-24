@@ -29,8 +29,11 @@ class Menu:
                                   command=self.importNamesFromFile)
         self.fileMenu.add_command(label='Clear Names from List',
                                   command=self.clearNamesFromList)
-        self.fileMenu.add_command(label='Save Names to My Favourite',
+        self.fileMenu.add_command(label='Save Names to File ...',
                                   command=self.saveNamesToFavourite)
+        self.fileMenu.add_separator()
+        self.fileMenu.add_command(label='Exit', command=self.exit)
+        
         # add Tools menu
         self.toolsMenu = tk.Menu(self.menu)
         self.menu.add_cascade(label='Tools', menu=self.toolsMenu)
@@ -48,8 +51,11 @@ class Menu:
                                  command=self.runWithConfig)
         self.runMenu.add_command(label='Run...',
                                  command=self.runWithoutConfig)
-        self.runMenu.add_command(label='Test Run',
-                                 command=self.testRun)
+        self.runMenu.add_command(label='Show Sample Run',
+                                 command=self.sampleRun)
+
+    def exit(self):
+        exit()
 
     def bindCanvasObj(self, canvas):
         self.canvas = canvas
@@ -67,16 +73,21 @@ class Menu:
             if self.canvas.comboHour['state'].string == 'normal':
                 hour = self.canvas.comboHour.get()
                 args = ['-s', str(lastName), '-g', str(gender), '-m',
-                        str(month), '-d', str(day), '-y', str(year), '-H', str(hour)]
+                        str(month), '-d', str(day), '-y', str(year), '-H', str(hour), '-n', str(self.canvas.enableNameScoring.get())]
                 print('Running exact mode\nsearching baby name for surname {0}, gender: {1} date of birth: {2}-{3}-{4}, hour: {5}' \
                       .format(args[1], args[3], args[5], args[7], args[9], args[11]))
             else:
                 hour = None
                 args = ['-s', str(lastName), '-g', str(gender), '-m',
-                        str(month), '-d', str(day), '-y', str(year), '-H', str(hour)]
+                        str(month), '-d', str(day), '-y', str(year), '-n', str(self.canvas.enableNameScoring.get())]
                 print('Running fuzzy mode\nsearching for baby name for surname {0}, gender: {1}, date of birth: {2}-{3}-{4}' \
                       .format(args[1], args[3], args[5], args[7], args[9]))
-            EZName.main(args)   # run the main program
+            if self.canvas.cutoffScoreEntry.get():
+                name_tuples = EZName.main(args, int(self.canvas.cutoffScoreEntry.get()))   # run the main program
+            else:
+                name_tuples = EZName.main(args)
+            for tuple in name_tuples:
+                self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2]))
             print('Done!')
         else:
             print('Error! Canvas is not initialized!')
@@ -85,11 +96,13 @@ class Menu:
     def runWithoutConfig(self):
         pass
 
-    def testRun(self):
-        args = ['-s', '李', '-g', 'M', '-y', '2020', '-m', '7', '-d', '3', '-H', '10']
+    def sampleRun(self):
+        args = ['-s', '李', '-g', 'M', '-y', '2020', '-m', '7', '-d', '3', '-H', '10', '-n', 'True']
         print('Running test mode\nsearching baby name for surname {0}, gender: {1}, date of birth: {2}-{3}-{4}' \
               .format(args[1], args[3], args[7], args[9], args[5]))
-        EZName.main(args)
+        name_tuples = EZName.main(args)
+        for tuple in name_tuples:
+            self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2])) 
         print('Done! Exiting test mode...')
 
 
@@ -207,7 +220,7 @@ class Canvas:
         self.lastNameEntry.grid(column=1, row=5)
 
         # add a label and combobox for baby gender
-        self.genderLabel = tk.Label(self.inputFrame, text='Gender')
+        self.genderLabel = tk.Label(self.inputFrame, font=('Arial', 14, 'bold'), text='Gender')
         self.genderLabel.grid(column=2, row=5)
         self.comboGender = ttk.Combobox(self.inputFrame, height=2, width=2, values=['M', 'F'])
         self.comboGender.grid(column=3, row=5)
@@ -217,15 +230,23 @@ class Canvas:
         # add a checkbox to indicate if enable name scoring
         self.enableNameScoring = tk.BooleanVar(self.inputFrame, True)
         self.chkBtn = ttk.Checkbutton(self.inputFrame, variable=self.enableNameScoring, onvalue=True, offvalue=False,
-                                      text='Get name score?', command=self.printNameScore)
-        self.chkBtn.grid(column=0, row=6, pady=10)
+                                      text='Get name score?', command=self.checkNameScore)
+        self.chkBtn.grid(column=0, row=6)
 
-        # add the run button
+
         self.style = ttk.Style()
         self.style.configure('my.TButton', font=('Arial', 16, 'bold'), foreground='green', background='black')
+
+        # add a text entry for cutoff score if name scoring is enabled
+        self.cutoffScoreLabel = tk.Label(self.inputFrame, text='Cutoff Score (0 ~ 100)')
+        self.cutoffScoreLabel.grid(column=1, row=6)
+        self.cutoffScoreEntry = tk.Entry(self.inputFrame, width=3)
+        self.cutoffScoreEntry.grid(column=2, row=6)
+
+        # add the run button
         self.runBtn = ttk.Button(self.inputFrame, text='Find Names', style='my.TButton', width=10,
                                  command=self.findNames)
-        self.runBtn.grid(column=1, row=6)
+        self.runBtn.grid(column=3, row=6, pady=10)
 
         # add a tableview to show the found names
         self.tableFrame = tk.Frame(master)
@@ -243,7 +264,7 @@ class Canvas:
         # set column headings
         for col in self.tableCols:
             self.nameListBox.heading(col, text=col)
-        self.nameListBox.grid(row=1, column=0, columnspan=2, sticky=tk.E)
+        self.nameListBox.grid(row=1, column=0, columnspan=2, sticky=tk.W)
 
     def findNames(self):
         lastName = self.lastNameEntry.get()
@@ -257,21 +278,26 @@ class Canvas:
         if self.comboHour['state'].string == 'normal':
             hour = self.comboHour.get()
             args = ['-s', str(lastName), '-g', str(gender), '-m',
-                    str(month), '-d', str(day), '-y', str(year), '-H', str(hour)]
+                    str(month), '-d', str(day), '-y', str(year), '-H', str(hour), '-n', str(self.enableNameScoring.get())]
             print('Running exact mode\nsearching baby name for surname {0}, gender: {1} date of birth: {2}-{3}-{4}, hour: {5}' \
                 .format(args[1], args[3], args[5], args[7], args[9], args[11]))
         else:
             hour = None
             args = ['-s', str(lastName), '-g', str(gender), '-m',
-                    str(month), '-d', str(day), '-y', str(year), '-H', str(hour)]
+                    str(month), '-d', str(day), '-y', str(year), '-n', str(self.enableNameScoring.get())]
             print('Running fuzzy mode\nsearching for baby name for surname {0}, gender: {1}, date of birth: {2}-{3}-{4}' \
                   .format(args[1], args[3], args[5], args[7], args[9]))
-        EZName.main(args)  # run the main program
+        name_tuples = EZName.main(args, int(self.cutoffScoreEntry.get()))  # run the main program
+        for tuple in name_tuples:
+            self.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2]))
         print('Done!')
 
-    def printNameScore(self):
+    def checkNameScore(self):
         print(self.enableNameScoring.get())
-        #print(self.lastNameEntry.get())
+        if self.enableNameScoring.get():
+            self.cutoffScoreEntry.configure(state='normal')
+        else:
+            self.cutoffScoreEntry.configure(state='disabled')
 
 
     def monthSelectionCallback(self, event):
@@ -323,7 +349,7 @@ class Canvas:
 
 if __name__ == "__main__":
     app = tk.Tk()
-    app.geometry('600x400')
+    app.geometry('700x500')
     app.title('EZName v1.0')
     menu = Menu(app)
     canvas = Canvas(app)

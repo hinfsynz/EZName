@@ -125,14 +125,19 @@ def output_wuxing(year, month, day, hour):
     print("[*] 五行属性：%s\n" % ', '.join(name_attr))
     return attr_list
 
-def select_name(surname, gender, hour, attr):
+def select_name(surname, gender, hour, attr, enableScoring, cutoff_score):
     '''
     Select name based on Wuxing attributes and difficulty of the words' pinyin syllables
     gender = M: select words from <chuci>
     gender = F: select words from <shijing>
+    hour = 0 ~ 23: the exact hour when the baby was born
+    attr: list of wuxing attributes
+    enableScoring: True - get name score from some online website
+    cutoff_score: int - the cutoff value below which the name will not be considered
     '''
     sur_type = 1 if len(surname) == 1 else 2
     match_count = 0
+    name_tuples = []
     full_names = []
     name_syllables = []
     name_scores = []
@@ -143,6 +148,9 @@ def select_name(surname, gender, hour, attr):
         full_name = surname + name
         # Match gender and general name word.
         if gender != ngender.guess(full_name)[0][0].upper():
+            continue
+        # if name already exists, skip it
+        if full_name in full_names:
             continue
         name_vec = lazy_pinyin(name)
         letters = 0
@@ -156,22 +164,40 @@ def select_name(surname, gender, hour, attr):
         if letters > 6 or isHard:  # if any of the syllables is hard for English speakers, just skip it
             continue
 
-        score = name_score(full_name, sur_type)
-        print('score is {0:2d}\n'.format(score))
-
-        full_names.append(full_name)
-        name_syllables.append('-'.join(lazy_pinyin(name)))
-        name_scores.append(score)
+        if enableScoring:
+            score = name_score(full_name, sur_type)
+            print('score is {0:2d}'.format(score))
+            if score < cutoff_score:
+                print('Score is below the cutoff value. Continue searching...')
+                continue   # skip those score is below the cutoff value
+            name_scores.append(score)
+            full_names.append(full_name)
+            name_syllables.append('-'.join(lazy_pinyin(name)))
+        else:
+            full_names.append(full_name)
+            name_syllables.append('-'.join(lazy_pinyin(name)))
 
         match_count += 1
+        print('no. of matches = {}'.format(match_count))
 
-    # score the name_scores in a descending order
-    # print out the names whose score higher than the threshold in a descending order of their scores
-    indices = [index for index, value in sorted(enumerate(name_scores), reverse=True, key=lambda x: x[1])]
-    with open('./name/babyname_{0}_{1}.csv'.format(surname, hour), 'w') as f:
+    if enableScoring:
+        # score the name_scores in a descending order
+        # print out the names whose score higher than the threshold in a descending order of their scores
+        indices = [index for index, value in sorted(enumerate(name_scores), reverse=True, key=lambda x: x[1])]
+        """with open('./name/babyname_{0}_{1}.csv'.format(surname, hour), 'w') as f:
+            for index in indices:
+                f.write(full_names[index] + ', ' + name_syllables[index] + ', ' + str(name_scores[index]))
+                f.write('\n')"""
         for index in indices:
-            f.write(full_names[index] + ', ' + name_syllables[index] + ', ' + str(name_scores[index]))
-            f.write('\n')
+            name_tuples.append([full_names[index], name_syllables[index], str(name_scores[index])])
+
+    else:
+        # if name scoring is not requested, simply return the name tuples
+        for i, name in enumerate(full_names):
+            name_tuples.append([name, name_syllables[i], 'N/A'])
+
+    return name_tuples
+
 
 def get_name_from_wuxing(gender, wuxing_list):
     '''
@@ -273,7 +299,7 @@ def load_wuxing_dict():
             wuxing_dict[row['Word']] = row['Wuxing']
     return wuxing_dict
 
-def main(args):
+def main(args, cutoff_score=SCORE_LINE):
     signal.signal(signal.SIGINT, sigint_handler)
 
     parser = argparse.ArgumentParser(description="Name children with birth datetime and WuXing balance.")
@@ -287,15 +313,25 @@ def main(args):
                         help="Day of birth date.")
     parser.add_argument("-H", type=int, choices=range(0, 24), metavar="hour", required=False,
                         help="Hour of birth datetime.")
+    parser.add_argument("-n", metavar="namescore", required=False, help="Get name score?")
     args_tuple = parser.parse_known_args(args=args)
 
+    if args_tuple[0].n:
+        nameScoring = True if args_tuple[0].n == 'True' else False
+    else:
+        nameScoring = False
     if args_tuple[0].H:
         attr_list = output_wuxing(args_tuple[0].y, args_tuple[0].m, args_tuple[0].d, args_tuple[0].H)
-        select_name(args_tuple[0].s, args_tuple[0].g, args_tuple[0].H, attr_list)
+        name_tuples = select_name(args_tuple[0].s, args_tuple[0].g, args_tuple[0].H, attr_list,
+                                  enableScoring=nameScoring, cutoff_score=cutoff_score)
     else:  # no hour is specified, select names for all hours of that day
+        name_tuples = []
         for hour in range(0, 24):
             attr_list = output_wuxing(args_tuple[0].y, args_tuple[0].m, args_tuple[0].d, hour)
-            select_name(args_tuple[0].s, args_tuple[0].g, hour, attr_list)
+            name_tuples.append(select_name(args_tuple[0].s, args_tuple[0].g, hour, attr_list,
+                                           enableScoring=nameScoring, cutoff_score=cutoff_score))
+
+    return name_tuples
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, sigint_handler)
@@ -311,12 +347,17 @@ if __name__ == '__main__':
                         help="Day of birth date.")
     parser.add_argument("-H", type=int, choices=range(0, 24), metavar="hour", required=False,
                         help="Hour of birth datetime.")
+    parser.add_argument("-n", metavar="namescore", required=False, help="Get name score?")
     args = parser.parse_args()
 
+    if args.n:
+        nameScoring = True if args.n == 'True' else False
+    else:
+        nameScoring = False
     if args.H:
         attr_list = output_wuxing(args.y, args.m, args.d, args.H)
-        select_name(args.s, args.g, args.H, attr_list)
+        select_name(args.s, args.g, args.H, attr_list, enableScoring=nameScoring, cutoff_score=SCORE_LINE)
     else:    # no hour is specified, select names for all hours of that day
         for hour in range(0, 24):
             attr_list = output_wuxing(args.y, args.m, args.d, hour)
-            select_name(args.s, args.g, hour, attr_list)
+            select_name(args.s, args.g, hour, attr_list, enableScoring=nameScoring, cutoff_score=SCORE_LINE)
