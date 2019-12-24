@@ -29,7 +29,7 @@ Only those names with easy-to-pronounce pinyin syllables for English speakers ar
 * Run GUI
 > Python3 mainGUI.py
 
-```
+[!image](https://github.com/hinfsynz/EZName/blob/master/resource/EZNameGUIPreview.png)
 
 
 
