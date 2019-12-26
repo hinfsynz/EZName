@@ -12,8 +12,24 @@ The main features of this program include
 * The name dictionary is extendable. Users can download Sogou cell thesaurus (*.scel) and load them in the program to use as the source of names 
 * Optionally, the users can decide if the names need to be scored by its "天格/地格/人格/才格". And if they choose to do so, the candidate names will be given in an descending order of this score.
 
+## Installation Instructions
+Python3.5 or higher version is required. The binary wheels list below are required to run this program. 
+* beautifulsoup4
+* jieba
+* lxml
+* ngender
+* pypinyin
+* requests
+* selenium
+* tkcalendar
+* urllib3
+
+Run the command below to install the required binary wheels
+> python3 -m pip install -r requirements.txt
+
+
 ## Unique Feature
-All candidate names are examined by their pinyin syllables. The difficulty of syllables are categorized into four levels according to https://resources.allsetlearning.com/
+1. All candidate names are examined by their pinyin syllables. The difficulty of syllables are categorized into four levels according to https://resources.allsetlearning.com/
 * Low
 * Medium
 * High
@@ -21,13 +37,15 @@ All candidate names are examined by their pinyin syllables. The difficulty of sy
 
 Only those names with easy-to-pronounce pinyin syllables for English speakers are selected.
 
+2. The name dictionary is extendable. Users can download more Sogou cell thesaurus in *.scel format and convert them to *.txt format for the use of this program. The conversion utility has been integrated with the GUI
+
 
 ## Usage
 * Run from command line
-> Python3 EZName.py -s 张 -g M -y 2020 -m 5 -d 9
+> python3 EZName.py -s 张 -g M -y 2020 -m 5 -d 9
 
 * Run GUI
-> Python3 mainGUI.py
+> python3 mainGUI.py
 
 ![image](https://github.com/hinfsynz/EZName/blob/master/resource/EZNameGUIPreview.png)
 
