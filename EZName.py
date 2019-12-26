@@ -180,6 +180,8 @@ def select_name(surname, gender, hour, attr, enableScoring, cutoff_score):
         match_count += 1
         print('no. of matches = {}'.format(match_count))
 
+    print('Searching Done!\nName, Pinyin, Score(Optional)')
+
     if enableScoring:
         # score the name_scores in a descending order
         # print out the names whose score higher than the threshold in a descending order of their scores
@@ -190,11 +192,13 @@ def select_name(surname, gender, hour, attr, enableScoring, cutoff_score):
                 f.write('\n')"""
         for index in indices:
             name_tuples.append([full_names[index], name_syllables[index], str(name_scores[index])])
+            print('{}, {}, {}'.format(full_names[index], name_syllables[index], str(name_scores[index])))
 
     else:
         # if name scoring is not requested, simply return the name tuples
         for i, name in enumerate(full_names):
             name_tuples.append([name, name_syllables[i], 'N/A'])
+            print('{}, {}, N/A'.format(full_names[i], name_syllables[i]))
 
     return name_tuples
 
