@@ -8,6 +8,7 @@ except ImportError:
     import ttk
     import tkFileDialog as td
 import datetime
+import csv
 from calendar import monthrange
 from tkcalendar import Calendar, DateEntry
 import EZName
@@ -126,14 +127,15 @@ class Menu:
     def importNamesFromFile(self):
         nameFile = td.askopenfilename(initialdir='./name/',title='Import A Name File',
                                       filetypes=[('Baby Names File', '*.csv'), ('All Files', '*')])
-        with open(nameFile, 'r') as f:
-            for line in f:
-                if '//' in line: continue   # skip the commented out lines
-                name = line.split(',')[0].strip()
-                pinyin = line.split(',')[1].strip()
-                score = line.split(',')[2].strip()
-                if self.canvas:
-                    self.canvas.nameListBox.insert('', 'end', values=(name, pinyin, score))
+        if nameFile:
+            with open(nameFile, 'r') as f:
+                for line in f:
+                    if '//' in line: continue   # skip the commented out lines
+                    name = line.split(',')[0].strip()
+                    pinyin = line.split(',')[1].strip()
+                    score = line.split(',')[2].strip()
+                    if self.canvas:
+                        self.canvas.nameListBox.insert('', 'end', values=(name, pinyin, score))
 
     def clearNamesFromList(self):
         if self.canvas:
@@ -141,7 +143,14 @@ class Menu:
                 self.canvas.nameListBox.delete(i)
 
     def saveNamesToFavourite(self):
-        pass
+        if self.canvas.nameListBox.get_children():
+            with open('babynames.csv', 'w', newline='') as csvFile:
+                writer = csv.DictWriter(csvFile, fieldnames=['name', 'pinyin', 'score'])
+                writer.writeheader()
+                for i in self.canvas.nameListBox.get_children():
+                    row = self.canvas.nameListBox.item(i)['values']
+                    writer.writerow({'name':row[0], 'pinyin':row[1], 'score':row[2]})
+
 
 
 class Canvas:
@@ -248,23 +257,109 @@ class Canvas:
                                  command=self.findNames)
         self.runBtn.grid(column=3, row=6, pady=10)
 
+        # add a slider to get the number of names for one time output
+        self.numOfNamesSlider = ttk.Scale(self.inputFrame, from_=1, to=10, orient=tk.HORIZONTAL,
+                                         command=self.updateNumOfNamesWanted)
+        self.numOfNamesSlider.grid(column=4, row=6, padx=10)
+        self.numOfNamesSlider.set(5)
+        self.numOfNamesSlider.bind('<Enter>', self.on_enter_slider)
+        self.numOfNamesSlider.bind('<Leave>', self.on_leave_slider)
+        self.sliderHoverText = ttk.Label(self.inputFrame, text='Hover over the slider\nfor hint')
+        self.sliderHoverText.configure(foreground='Orange', font=('Calibri', 11))
+        self.sliderHoverText.grid(column=4, row=5)
+        self.sliderLabel = ttk.Label(self.inputFrame)
+        self.sliderLabel.grid(column=4, row=6, sticky=tk.E)
+        self.sliderLabel.configure(foreground='Green', font=('Calibri', 13, 'bold'), text='5')
+
         # add a tableview to show the found names
         self.tableFrame = tk.Frame(master)
         self.tableFrame.grid(row=1, columnspan=4)
 
         # customize the treeview style
-        self.style.configure("mystyle.Treeview", highlightthickness=0, bd=0, font=('Calibri', 15))  # Modify the font of the body
-        self.style.configure("mystyle.Treeview.Heading", font=('Calibri', 13, 'bold'))  # Modify the font of the headings
+        self.style.configure("mystyle.Treeview", highlightthickness=0, bd=0, font=('Calibri', 17))  # Modify the font of the body
+        self.style.configure("mystyle.Treeview.Heading", font=('Calibri', 15, 'bold'))  # Modify the font of the headings
         self.style.layout("mystyle.Treeview", [('mystyle.Treeview.treearea', {'sticky': 'nswe'})])  # Remove the borders
-        self.labelTable = tk.Label(self.tableFrame, text="Found Names", font=("Arial", 20))
-        self.labelTable.grid(row=0, columnspan=3)
+        self.labelTable = tk.Label(self.tableFrame, text="Found Names", font=("Arial", 20, 'bold'))
+        self.labelTable.grid(row=0, columnspan=4)
         # create Treeview with 3 columns
         self.tableCols = ('Name', 'Pinyin', 'Score')
         self.nameListBox = ttk.Treeview(self.tableFrame, style='mystyle.Treeview', columns=self.tableCols, show='headings')
         # set column headings
         for col in self.tableCols:
             self.nameListBox.heading(col, text=col)
-        self.nameListBox.grid(row=1, column=0, columnspan=2, sticky=tk.W)
+        self.nameListBox.bind('<Button-2>', self.popupMenu)
+        self.nameListBox.bind('<<TreeviewSelect>>')
+        self.nameListBox.grid(row=1, column=0, columnspan=4, sticky=tk.W)
+
+        # add a scrollbar and attach it to the treeview
+        self.nameListScroll = ttk.Scrollbar(self.tableFrame, orient='vertical', command=self.nameListBox.yview)
+        #self.nameListScroll.place(height=400)
+        self.nameListBox.configure(yscrollcommand=self.nameListScroll.set)
+        self.nameListScroll.grid(row=1, column=3, sticky=tk.E)
+
+        # create a popup menu for the right click activity
+        self.treeRightClickMenu = tk.Menu(self.tableFrame, tearoff=0)
+        self.treeRightClickMenu.add_command(label='Save Selected Items', command=self.saveSelectedItems)
+        self.treeRightClickMenu.add_command(label='Save All Items', command=self.saveAllItems)
+        self.treeRightClickMenu.add_command(label='Clear Selected Items', command=self.clearSelectedItems)
+        self.treeRightClickMenu.add_command(label='Clear All Items', command=self.clearAllItems)
+
+    def updateNumOfNamesWanted(self, event):
+        idx = int(float(event))
+        self.sliderLabel.configure(foreground='Green', font=('Calibri', 13, 'bold'), text=str(idx))
+
+    def on_enter_slider(self, event):
+        self.sliderHoverText.configure(foreground='Orange', font=('Calibri', 11),
+                                       text='Number of names you\nwant to find out')
+
+    def on_leave_slider(self, event):
+        self.sliderHoverText.configure(foreground='Orange', font=('Calibri', 11),
+                                       text='Hover over the slider\nfor hint')
+
+    def popupMenu(self, event):
+        try:
+            self.treeRightClickMenu.tk_popup(event.x_root, event.y_root, 0)
+        finally:
+            # make sure to release the grab
+            self.treeRightClickMenu.grab_release()
+
+    def saveSelectedItems(self):
+        saveAsFile = td.asksaveasfilename(filetypes=[('Baby Names File', '*.csv')],
+                                      defaultextension=[('Baby Names File', '*.csv')])
+        if saveAsFile and self.nameListBox.selection():
+            print('Saving selected items to file {}'.format(saveAsFile))
+            with open(saveAsFile, 'w', newline='') as f:
+                csvWriter = csv.DictWriter(f, fieldnames=['name', 'pinyin', 'score'])
+                csvWriter.writeheader()
+                for i in self.nameListBox.selection():
+                    row = self.nameListBox.item(i)['values']
+                    csvWriter.writerow({'name':row[0], 'pinyin': row[1], 'score': row[2]})
+            print('Done saving!')
+        elif not self.nameListBox.selection():
+            print('No item was selected!')
+
+    def saveAllItems(self):
+        saveAsFile = td.asksaveasfilename(filetypes=[('Baby Names File', '*.csv')],
+                                          defaultextension=[('Baby Names File', '*.csv')])
+        if saveAsFile and self.nameListBox.get_children():
+            print('Saving selected items to file {}'.format(saveAsFile))
+            with open(saveAsFile, 'w', newline='') as f:
+                csvWriter = csv.DictWriter(f, fieldnames=['name', 'pinyin', 'score'])
+                csvWriter.writeheader()
+                for i in self.nameListBox.get_children():
+                    row = self.nameListBox.item(i)['values']
+                    csvWriter.writerow({'name': row[0], 'pinyin': row[1], 'score': row[2]})
+            print('Done saving!')
+        elif not self.nameListBox.get_children():
+            print('No name has been loaded!')
+
+    def clearSelectedItems(self):
+        for i in self.nameListBox.selection():
+            self.nameListBox.delete(i)
+
+    def clearAllItems(self):
+        for i in self.nameListBox.get_children():
+            self.nameListBox.delete(i)
 
     def findNames(self):
         lastName = self.lastNameEntry.get()
@@ -349,8 +444,9 @@ class Canvas:
 
 if __name__ == "__main__":
     app = tk.Tk()
-    app.geometry('700x500')
+    app.geometry('750x500')
     app.title('EZName v1.0')
+    app.resizable(False, False)   # make the window non-resizeable
     menu = Menu(app)
     canvas = Canvas(app)
     menu.bindCanvasObj(canvas) # bind the canvas object to menu object in order to update the user selection
