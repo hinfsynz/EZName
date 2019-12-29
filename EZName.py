@@ -125,7 +125,7 @@ def output_wuxing(year, month, day, hour):
     print("[*] 五行属性：%s\n" % ', '.join(name_attr))
     return attr_list
 
-def select_name(surname, gender, hour, attr, enableScoring, cutoff_score):
+def select_name(surname, gender, hour, attr, enableScoring, cutoff_score, num_of_matches=5):
     '''
     Select name based on Wuxing attributes and difficulty of the words' pinyin syllables
     gender = M: select words from <chuci>
@@ -143,7 +143,7 @@ def select_name(surname, gender, hour, attr, enableScoring, cutoff_score):
     name_scores = []
     found_names = get_name_from_wuxing(gender, attr)
     difficulty_dict = load_difficulty_dict()
-    while match_count < 5:
+    while match_count < num_of_matches:
         name = found_names[randint(0, len(found_names) - 1)] # randomly pick a name from the matched names
         full_name = surname + name
         # Match gender and general name word.
@@ -171,11 +171,9 @@ def select_name(surname, gender, hour, attr, enableScoring, cutoff_score):
                 print('Score is below the cutoff value. Continue searching...')
                 continue   # skip those score is below the cutoff value
             name_scores.append(score)
-            full_names.append(full_name)
-            name_syllables.append('-'.join(lazy_pinyin(name)))
-        else:
-            full_names.append(full_name)
-            name_syllables.append('-'.join(lazy_pinyin(name)))
+
+        full_names.append(full_name)
+        name_syllables.append('-'.join(lazy_pinyin(name)))
 
         match_count += 1
         print('no. of matches = {}'.format(match_count))
@@ -303,7 +301,7 @@ def load_wuxing_dict():
             wuxing_dict[row['Word']] = row['Wuxing']
     return wuxing_dict
 
-def main(args, cutoff_score=SCORE_LINE):
+def main(args, num_of_matches, cutoff_score=SCORE_LINE):
     signal.signal(signal.SIGINT, sigint_handler)
 
     parser = argparse.ArgumentParser(description="Name children with birth datetime and WuXing balance.")
@@ -317,23 +315,24 @@ def main(args, cutoff_score=SCORE_LINE):
                         help="Day of birth date.")
     parser.add_argument("-H", type=int, choices=range(0, 24), metavar="hour", required=False,
                         help="Hour of birth datetime.")
-    parser.add_argument("-n", metavar="namescore", required=False, help="Get name score?")
+    parser.add_argument("-n", type=int, metavar="namescore", required=False, help="Get name score?")
     args_tuple = parser.parse_known_args(args=args)
 
     if args_tuple[0].n:
-        nameScoring = True if args_tuple[0].n == 'True' else False
+        nameScoring = True if args_tuple[0].n > 0 else False
     else:
-        nameScoring = False
+        nameScoring = True
+
     if args_tuple[0].H:
         attr_list = output_wuxing(args_tuple[0].y, args_tuple[0].m, args_tuple[0].d, args_tuple[0].H)
         name_tuples = select_name(args_tuple[0].s, args_tuple[0].g, args_tuple[0].H, attr_list,
-                                  enableScoring=nameScoring, cutoff_score=cutoff_score)
+                      enableScoring=nameScoring, cutoff_score=cutoff_score, num_of_matches=num_of_matches)
     else:  # no hour is specified, select names for all hours of that day
         name_tuples = []
         for hour in range(0, 24):
             attr_list = output_wuxing(args_tuple[0].y, args_tuple[0].m, args_tuple[0].d, hour)
             name_tuples.append(select_name(args_tuple[0].s, args_tuple[0].g, hour, attr_list,
-                                           enableScoring=nameScoring, cutoff_score=cutoff_score))
+                               enableScoring=nameScoring, cutoff_score=cutoff_score, num_of_matches=num_of_matches))
 
     return name_tuples
 
@@ -351,13 +350,15 @@ if __name__ == '__main__':
                         help="Day of birth date.")
     parser.add_argument("-H", type=int, choices=range(0, 24), metavar="hour", required=False,
                         help="Hour of birth datetime.")
-    parser.add_argument("-n", metavar="namescore", required=False, help="Get name score?")
+    parser.add_argument("-n", type=int, metavar="namescore", required=False, help="Get name score?")
     args = parser.parse_args()
 
     if args.n:
-        nameScoring = True if args.n == 'True' else False
-    else:
-        nameScoring = False
+        nameScoring = True if args.n > 0 else False
+    else:   # if the option is not given
+        nameScoring = True
+
+
     if args.H:
         attr_list = output_wuxing(args.y, args.m, args.d, args.H)
         select_name(args.s, args.g, args.H, attr_list, enableScoring=nameScoring, cutoff_score=SCORE_LINE)

@@ -2,24 +2,32 @@ try:
     from tkinter import ttk   # Python3
     from tkinter import filedialog as td
     from tkinter import simpledialog as sd
+    from tkinter import messagebox as tm
     import tkinter as tk
+    from queue import Queue
 except ImportError:
     import Tkinter as tk    # Python 2
     import ttk
     import tkFileDialog as td
+    import Queue
+    import tkMessageBox as tm
 import datetime
 import csv
 from calendar import monthrange
 from tkcalendar import Calendar, DateEntry
+from os import path
 import EZName
 import util.scel2txt as scel2txt
 import util.fetch_syllables as fetch_syllables
 import util.segment_poem as segment_poem
+import requests
 
 class Menu:
     canvas = None
-    def __init__(self, master):
+    configQueue = None
+    def __init__(self, master, configQueue):
         self.master = master
+        self.configQueue = configQueue
         self.menu = tk.Menu(master)
         master.config(menu=self.menu)
 
@@ -47,21 +55,82 @@ class Menu:
 
         # add Run menu
         self.runMenu = tk.Menu(self.menu)
+        self.subRunMenu = tk.Menu(self.runMenu)
         self.menu.add_cascade(label='Run', menu=self.runMenu)
         self.runMenu.add_command(label='Run with current configuration',
-                                 command=self.runWithConfig)
-        self.runMenu.add_command(label='Run...',
-                                 command=self.runWithoutConfig)
+                                 command=self.runWithCurrentConfig)
+        self.runMenu.add_cascade(label='Load A Recent Run...',
+                                 menu=self.subRunMenu)
         self.runMenu.add_command(label='Show Sample Run',
                                  command=self.sampleRun)
 
+        # add a FIFO queue to save the recent run configurations
+        #self.configQueue = Queue(maxsize=10)
+        # add sample runs, which will be flushed later by the user's input
+        #self.configQueue.put(['-s', 'Zhang', '-g', 'M', '-m', '05', '-d', '09', '-y', '2020', '-H', '10', '-n', 'True'])
+        #self.configQueue.put(['-s', 'Wang', '-g', 'M', '-m', '03', '-d', '30', '-y', '2020', '-n', 'True'])
+        #self.configQueue.put(['-s', 'Li', '-g', 'F', '-m', '10', '-d', '12', '-y', '2020', '-H', '6', '-n', 'False'])
+
+        for i in range(len(self.configQueue.queue)):
+            args = self.configQueue.queue[i]
+            if '-H' in args:
+                configStr = '{0}/{1}/{2}:{6}, surname: {3}, gender: {4}, score: {5}' \
+                            .format(args[5], args[7], args[9], args[1], args[3], args[13], args[11])
+            else:
+                configStr ='{0}/{1}/{2}, surname: {3}, gender: {4}, score: {5}' \
+                            .format(args[5], args[7], args[9], args[1], args[3], args[11])
+            self.subRunMenu.add_command(label='Run {0}: {1}'.format(i+1, configStr), command=lambda idx=i: self.runWithRecentConfig(idx))
+
+        # add a help menu
+        self.helpMenu = tk.Menu(self.menu)
+        self.menu.add_cascade(label='Help', menu=self.helpMenu)
+        self.helpMenu.add_command(label='Copyright', command=self.popupCopyrightText)
+        self.helpMenu.add_command(label='Download Latest Version', command=self.downloadZip)
+
+    def popupCopyrightText(self):
+        popup_cp_window = tk.Tk()
+        popup_cp_window.wm_title('EZName License')
+        textbox = tk.Text(popup_cp_window, font=('Calibri', 12, 'bold'))
+        textbox.pack()
+        license_statements = 'MIT License'
+        with open('LICENSE', 'r') as f:
+            license_statements = f.read()
+        textbox.insert(tk.END, license_statements)
+        textbox.config(state=tk.DISABLED)
+        okayBtn = tk.Button(popup_cp_window, text='Ok', command=popup_cp_window.destroy)
+        okayBtn.pack()
+        popup_cp_window.mainloop()
+
+    def downloadZip(self):
+        download_url = 'https://github.com/hinfsynz/EZName/archive/master.zip'
+        r = requests.get(download_url)
+        with open('EZName.zip', 'wb') as f:
+            f.write(r.content)
+        if r.status_code == 200:
+            print('Successfully download the latest version of EZName')
+        else:
+            print('Something went wrong')
+
     def exit(self):
-        exit()
+        if tm.askokcancel('Quit', 'Do you want to quit?'):
+            with open('./input/recentRuns.config', 'w', newline='') as csvFile:
+                writer = csv.DictWriter(csvFile, fieldnames=['Name', 'Gender', 'Month', 'Day', 'Year', 'Hour', 'Score'])
+                writer.writeheader()
+                for row in self.configQueue.queue:
+                    if len(row) > 11:
+                        writer.writerow({'Name': row[1], 'Gender': row[3], 'Month': row[5],
+                                         'Day': row[7], 'Year': row[9], 'Hour': row[11],
+                                         'Score': row[13]})
+                    else:
+                        writer.writerow({'Name': row[1], 'Gender': row[3], 'Month': row[5],
+                                         'Day': row[7], 'Year': row[9], 'Hour': 'N/A',
+                                         'Score': row[11]})
+        self.master.destroy()
 
     def bindCanvasObj(self, canvas):
         self.canvas = canvas
 
-    def runWithConfig(self):
+    def runWithCurrentConfig(self):
         if self.canvas:
             lastName = self.canvas.lastNameEntry.get()
             if not lastName:
@@ -83,10 +152,12 @@ class Menu:
                         str(month), '-d', str(day), '-y', str(year), '-n', str(self.canvas.enableNameScoring.get())]
                 print('Running fuzzy mode\nsearching for baby name for surname {0}, gender: {1}, date of birth: {2}-{3}-{4}' \
                       .format(args[1], args[3], args[5], args[7], args[9]))
+            num_of_matches = int(float(self.canvas.numOfNamesSlider.get()))
             if self.canvas.cutoffScoreEntry.get():
-                name_tuples = EZName.main(args, int(self.canvas.cutoffScoreEntry.get()))   # run the main program
+                cutoff_score = int(self.canvas.cutoffScoreEntry.get())
+                name_tuples = EZName.main(args, num_of_matches=num_of_matches, cutoff_score=cutoff_score)   # run the main program
             else:
-                name_tuples = EZName.main(args)
+                name_tuples = EZName.main(args, num_of_matches=num_of_matches)
             for tuple in name_tuples:
                 self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2]))
             print('Done!')
@@ -94,14 +165,19 @@ class Menu:
             print('Error! Canvas is not initialized!')
             return
 
-    def runWithoutConfig(self):
-        pass
+    def runWithRecentConfig(self, idx):
+        print('config: {}'.format(idx))
+        args = self.configQueue.queue[idx]
+        name_tuples = EZName.main(args, num_of_matches=int(self.canvas.numOfNamesSlider.get()))
+        for tuple in name_tuples:
+            self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2]))
+        print("Done running recent config '{}'".format(idx+1))
 
     def sampleRun(self):
-        args = ['-s', '李', '-g', 'M', '-y', '2020', '-m', '7', '-d', '3', '-H', '10', '-n', 'True']
+        args = ['-s', '李', '-g', 'M', '-y', '2020', '-m', '7', '-d', '3', '-H', '10']
         print('Running test mode\nsearching baby name for surname {0}, gender: {1}, date of birth: {2}-{3}-{4}' \
               .format(args[1], args[3], args[7], args[9], args[5]))
-        name_tuples = EZName.main(args)
+        name_tuples = EZName.main(args, num_of_matches=5)
         for tuple in name_tuples:
             self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2])) 
         print('Done! Exiting test mode...')
@@ -152,16 +228,19 @@ class Menu:
                     writer.writerow({'name':row[0], 'pinyin':row[1], 'score':row[2]})
 
 
-
 class Canvas:
 
-    def __init__(self, master):
+    menu = None
+    configQueue = None
+
+    def __init__(self, master, configQueue):
 
         self.master = master
+        self.configQueue = configQueue
         self.calIcon = tk.PhotoImage(file='resource/cal_icon_2.png').subsample(10)
 
-        self.background_image = tk.PhotoImage(file='resource/gui_bg.png')
-        self.background_label = tk.Label(master, image=self.background_image)
+        #self.background_image = tk.PhotoImage(file='resource/gui_bg.png')
+        #self.background_label = tk.Label(master, image=self.background_image)
         #self.background_label.place(x=0, y=0, relwidth=1, relheight=1)
 
         self.inputFrame = tk.Frame(master)
@@ -258,6 +337,9 @@ class Canvas:
         self.runBtn.grid(column=3, row=6, pady=10)
 
         # add a slider to get the number of names for one time output
+        self.sliderLabel = ttk.Label(self.inputFrame)
+        self.sliderLabel.grid(column=5, row=6, sticky=tk.W)
+        self.sliderLabel.configure(foreground='Green', font=('Calibri', 13, 'bold'), text='5')
         self.numOfNamesSlider = ttk.Scale(self.inputFrame, from_=1, to=10, orient=tk.HORIZONTAL,
                                          command=self.updateNumOfNamesWanted)
         self.numOfNamesSlider.grid(column=4, row=6, padx=10)
@@ -267,9 +349,6 @@ class Canvas:
         self.sliderHoverText = ttk.Label(self.inputFrame, text='Hover over the slider\nfor hint')
         self.sliderHoverText.configure(foreground='Orange', font=('Calibri', 11))
         self.sliderHoverText.grid(column=4, row=5)
-        self.sliderLabel = ttk.Label(self.inputFrame)
-        self.sliderLabel.grid(column=4, row=6, sticky=tk.E)
-        self.sliderLabel.configure(foreground='Green', font=('Calibri', 13, 'bold'), text='5')
 
         # add a tableview to show the found names
         self.tableFrame = tk.Frame(master)
@@ -304,12 +383,15 @@ class Canvas:
         self.treeRightClickMenu.add_command(label='Clear Selected Items', command=self.clearSelectedItems)
         self.treeRightClickMenu.add_command(label='Clear All Items', command=self.clearAllItems)
 
+    def bindMenuObj(self, menu):
+        self.menu = menu
+
     def updateNumOfNamesWanted(self, event):
         idx = int(float(event))
         self.sliderLabel.configure(foreground='Green', font=('Calibri', 13, 'bold'), text=str(idx))
 
     def on_enter_slider(self, event):
-        self.sliderHoverText.configure(foreground='Orange', font=('Calibri', 11),
+        self.sliderHoverText.configure(foreground='Blue', font=('Calibri', 11),
                                        text='Number of names you\nwant to find out')
 
     def on_leave_slider(self, event):
@@ -370,22 +452,65 @@ class Canvas:
         day = self.comboDay.get()
         year = self.comboYear.get()
         gender = self.comboGender.get()
+        if self.cutoffScoreEntry.get():
+            cutoff_score = int(self.cutoffScoreEntry.get())
+        else:
+            cutoff_score = -99
         if self.comboHour['state'].string == 'normal':
             hour = self.comboHour.get()
             args = ['-s', str(lastName), '-g', str(gender), '-m',
-                    str(month), '-d', str(day), '-y', str(year), '-H', str(hour), '-n', str(self.enableNameScoring.get())]
+                    str(month), '-d', str(day), '-y', str(year), '-H', str(hour), '-n', str(cutoff_score)]
             print('Running exact mode\nsearching baby name for surname {0}, gender: {1} date of birth: {2}-{3}-{4}, hour: {5}' \
                 .format(args[1], args[3], args[5], args[7], args[9], args[11]))
         else:
             hour = None
             args = ['-s', str(lastName), '-g', str(gender), '-m',
-                    str(month), '-d', str(day), '-y', str(year), '-n', str(self.enableNameScoring.get())]
+                    str(month), '-d', str(day), '-y', str(year), '-n', str(cutoff_score)]
             print('Running fuzzy mode\nsearching for baby name for surname {0}, gender: {1}, date of birth: {2}-{3}-{4}' \
                   .format(args[1], args[3], args[5], args[7], args[9]))
-        name_tuples = EZName.main(args, int(self.cutoffScoreEntry.get()))  # run the main program
-        for tuple in name_tuples:
-            self.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2]))
+        num_of_matches = int(float(self.numOfNamesSlider.get()))
+        name_tuples = EZName.main(args, num_of_matches=num_of_matches, cutoff_score=cutoff_score)  # run the main program
+        if not hour:
+            for hour_tuple in name_tuples:   # each hour has 'num_of_matches' names found
+                for tuple in hour_tuple:
+                    self.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2]))
+        else:
+            for tuple in name_tuples:
+                self.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2]))
         print('Done!')
+
+        # update the label of the 'Load Recent Run' submenu
+        if '-H' in args:  # if 'hour' has been specified
+            configStr = '{0}/{1}/{2}:{6}, surname: {3}, gender: {4}, score: {5}' \
+                .format(str(month), str(day), str(year), str(lastName), str(gender), str(cutoff_score), str(hour))
+        else:
+            configStr = '{0}/{1}/{2}, surname: {3}, gender: {4}, score: {5}' \
+                .format(str(month), str(day), str(year), str(lastName), str(gender), str(cutoff_score))
+
+        if not self.configQueue.full():  # check the config queue is full or not
+            self.configQueue.put(args)
+            num_of_recent_runs = len(self.configQueue.queue)
+            self.menu.subRunMenu.add_command(label='Run {0}: {1}'.format(num_of_recent_runs, configStr),
+                                             command=lambda idx=num_of_recent_runs-1: self.menu.runWithRecentConfig(idx))
+        else:
+            unwanted_config = self.configQueue.get()
+            self.configQueue.put(args)
+            for i in range(len(self.configQueue.queue)):
+                recent_args = self.configQueue.queue[i]
+                if '-H' in recent_args:  # if 'hour' has been specified
+                    recent_configStr = '{0}/{1}/{2}:{6}, surname: {3}, gender: {4}, score: {5}' \
+                        .format(str(recent_args[5]), str(recent_args[7]), str(recent_args[9]), str(recent_args[1]),
+                                str(recent_args[3]), str(recent_args[13]), str(recent_args[11]))
+                else:
+                    recent_configStr = '{0}/{1}/{2}, surname: {3}, gender: {4}, score: {5}' \
+                        .format(str(recent_args[5]), str(recent_args[7]), str(recent_args[9]), str(recent_args[1]),
+                                str(recent_args[3]), str(recent_args[11]))
+                self.menu.subRunMenu.entryconfigure(i, label='Run {0}: {1}'.format(i+1, recent_configStr),
+                                                    command=lambda idx=i: self.menu.runWithRecentConfig(idx))
+            #self.configQueue.put(args)
+            #num_of_recent_runs = len(self.configQueue.queue)
+            #self.menu.subRunMenu.add_c(label='Run {0}: {1}'.format(num_of_recent_runs-1, configStr),
+                                            # command=lambda idx=num_of_recent_runs - 1: self.menu.runWithRecentConfig(idx))
 
     def checkNameScore(self):
         print(self.enableNameScoring.get())
@@ -441,13 +566,46 @@ class Canvas:
         self.cal.pack(fill="both", expand=True)
         ttk.Button(self.top, text='OK', command=updateDate).pack()
 
+def on_closing():
+    if tm.askokcancel('Quit', 'Do you want to quit?'):
+        with open('./input/recentRuns.config', 'w', newline='') as csvFile:
+            writer = csv.DictWriter(csvFile, fieldnames=['Name', 'Gender', 'Month', 'Day', 'Year', 'Hour', 'Score'])
+            writer.writeheader()
+            for row in configQueue.queue:
+                if len(row) > 12:
+                    writer.writerow({'Name': row[1], 'Gender': row[3], 'Month': row[5],
+                                     'Day': row[7], 'Year': row[9], 'Hour': row[11],
+                                     'Score': row[13]})
+                else:
+                    writer.writerow({'Name': row[1], 'Gender': row[3], 'Month': row[5],
+                                     'Day': row[7], 'Year': row[9], 'Hour': 'N/A',
+                                     'Score': row[11]})
+        app.destroy()
+
+def loadRunConfig(configQueue):
+    if path.exists('./input/recentRuns.config'):
+        with open('./input/recentRuns.config', newline='') as f:
+            csvReader = csv.DictReader(f)
+            for row in csvReader:
+                if row['Hour'] != 'N/A':
+                    args = ['-s', row['Name'], '-g', row['Gender'], '-m', row['Month'],
+                            '-d', row['Day'], '-y', row['Year'], '-H', row['Hour'],
+                            '-n', row['Score']]
+                else:
+                    args = ['-s', row['Name'], '-g', row['Gender'], '-m', row['Month'],
+                            '-d', row['Day'], '-y', row['Year'], '-n', row['Score']]
+                configQueue.put(args)
 
 if __name__ == "__main__":
     app = tk.Tk()
     app.geometry('750x500')
-    app.title('EZName v1.0')
+    app.title('EZName v1.0 (Alpha Release)')
     app.resizable(False, False)   # make the window non-resizeable
-    menu = Menu(app)
-    canvas = Canvas(app)
-    menu.bindCanvasObj(canvas) # bind the canvas object to menu object in order to update the user selection
+    configQueue = Queue(maxsize=10)
+    loadRunConfig(configQueue=configQueue)
+    menu = Menu(app, configQueue)
+    canvas = Canvas(app, configQueue)
+    menu.bindCanvasObj(canvas) # bind the canvas object being created to menu in order to update the user selection
+    canvas.bindMenuObj(menu)  # bind the menu object being created to canvas to update the menu dynamically
+    app.protocol('WM_DELETE_WINDOW', on_closing)
     app.mainloop()
