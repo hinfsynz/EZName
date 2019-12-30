@@ -30,6 +30,7 @@ import random
 from util.boxcalendar import *
 
 SCORE_LINE = 70
+SEARCH_LIMIT = 1000
 
 
 def compute_wuxing(year, month, day, hour):
@@ -146,7 +147,8 @@ def select_name(surname, gender, hour, attr, wuxing_dict, difficulty_dict,
     name_syllables = []
     name_scores = []
     found_names = get_name_from_wuxing(gender, attr, wuxing_dict, modal_particles)
-    while match_count < num_of_matches:
+    count = 0
+    while match_count < num_of_matches and count < SEARCH_LIMIT:
         name = found_names[random.randint(0, len(found_names) - 1)] # randomly pick a name from the matched names
         full_name = surname + name
         # Match gender and general name word.
@@ -155,6 +157,8 @@ def select_name(surname, gender, hour, attr, wuxing_dict, difficulty_dict,
         # if name already exists, skip it
         if full_name in full_names:
             continue
+        print('picked name: {}'.format(full_name))
+        count += 1
         name_vec = lazy_pinyin(name)
         letters = 0
         isHard = False
@@ -165,6 +169,7 @@ def select_name(surname, gender, hour, attr, wuxing_dict, difficulty_dict,
                 if difficulty_dict[n] != 'Low':
                     isHard = True
         if letters > 6 or isHard:  # if any of the syllables is hard for English speakers, just skip it
+            print('pinyin is too long or too hard')
             continue
 
         if enableScoring:
@@ -181,6 +186,9 @@ def select_name(surname, gender, hour, attr, wuxing_dict, difficulty_dict,
         match_count += 1
         print('no. of matches = {}'.format(match_count))
 
+    if (count == SEARCH_LIMIT):    # if the search limit is hit, show the warning
+        print('Search limit {} is hit! Stop searching!'.format(SEARCH_LIMIT))
+   
     print('Searching Done!\nName, Pinyin, Score(Optional)')
 
     if enableScoring:
@@ -217,7 +225,7 @@ def get_name_from_wuxing(gender, wuxing_attrib_list, wuxing_dict, modal_particle
         word_cells_list = [line.strip() for line in open('./input/shijing_clean.txt', 'r')]
     else:
         print('Sorry. LGBTQ is not supported. ;-(')
-    count = 0
+    #count = 0
     for word_cells in word_cells_list:
         filtered_word_cells = []
         for word in word_cells:
@@ -225,7 +233,8 @@ def get_name_from_wuxing(gender, wuxing_attrib_list, wuxing_dict, modal_particle
                 filtered_word_cells.append(word)
         if len(filtered_word_cells) < 2:    # if the length of the filtered word cells if less than 2, skip using it
             continue
-        refined_word_cells = random.sample(set(filtered_word_cells), 2)  # pick two words from the cell randomly
+        #print(''.join(filtered_word_cells))
+        refined_word_cells = random.sample(filtered_word_cells, 2)  # pick two words from the cell randomly
         is_match = True
         for word in refined_word_cells:
             if word not in wuxing_dict:
