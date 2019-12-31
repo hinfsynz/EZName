@@ -145,7 +145,7 @@ class Menu:
                 cutoff_score = int(self.canvas.cutoffScoreEntry.get())
             else:
                 cutoff_score = -99
-            if self.canvas.comboHour['state'].string == 'normal':
+            if self.canvas.comboHour['state'] == 'normal':
                 hour = self.canvas.comboHour.get()
                 args = ['-s', str(lastName), '-g', str(gender), '-m',
                         str(month), '-d', str(day), '-y', str(year), '-H', str(hour), '-n', str(cutoff_score)]
@@ -158,11 +158,12 @@ class Menu:
                 print('Running fuzzy mode\nsearching for baby name for surname {0}, gender: {1}, date of birth: {2}-{3}-{4}' \
                       .format(args[1], args[3], args[5], args[7], args[9]))
             num_of_matches = int(float(self.canvas.numOfNamesSlider.get()))
+            source_file_index = self.nameSources.index(self.nameSourceVar.get())
             if self.canvas.cutoffScoreEntry.get():
                 cutoff_score = int(self.canvas.cutoffScoreEntry.get())
-                name_tuples = EZName.main(args, num_of_matches=num_of_matches, cutoff_score=cutoff_score)   # run the main program
+                name_tuples = EZName.main(args, num_of_matches=num_of_matches, cutoff_score=cutoff_score, source_file_index=source_file_index)   # run the main program
             else:
-                name_tuples = EZName.main(args, num_of_matches=num_of_matches)
+                name_tuples = EZName.main(args, num_of_matches=num_of_matches, source_file_index=source_file_index)
 
             if not hour:
                 for hour_tuple in name_tuples:
@@ -179,7 +180,8 @@ class Menu:
     def runWithRecentConfig(self, idx):
         print('config: {}'.format(idx))
         args = self.configQueue.queue[idx]
-        name_tuples = EZName.main(args, num_of_matches=int(self.canvas.numOfNamesSlider.get()))
+        source_file_index = self.nameSources.index(self.nameSourceVar.get())
+        name_tuples = EZName.main(args, num_of_matches=int(self.canvas.numOfNamesSlider.get()), source_file_index=source_file_index)
         if '-H' not in args:
             for hour_tuple in name_tuples:
                 for tuple in hour_tuple:
@@ -267,8 +269,28 @@ class Canvas:
         #self.background_label = tk.Label(master, image=self.background_image)
         #self.background_label.place(x=0, y=0, relwidth=1, relheight=1)
 
+
+        # add a menubutton for user to select the name source
+        self.soureFrame = tk.Frame(master)
+        self.soureFrame.grid(row=0, column=0, padx=20, pady=20, sticky=tk.W)
+        self.labelSource = tk.Label(self.soureFrame, font=('Arial', 14, 'bold'), text='Name Source:')
+        self.labelSource.grid(column=0, row=0)
+        self.nameSourceVar = tk.StringVar(value="M-Chuci,F-Shijing(男楚辞,女诗经)")
+        self.menubutton = tk.Menubutton(self.soureFrame, textvariable=self.nameSourceVar, indicatoron=True,
+                                        borderwidth=1, relief="raised")
+        self.main_menu = tk.Menu(self.menubutton, tearoff=False)
+        self.menubutton.configure(menu=self.main_menu, width=30, font=('Arial', 12, 'bold'))
+        self.nameSources = ["Alternate Name Sources", "M-Chuci,F-Shijing(男楚辞,女诗经)", "IChing(易经)", "Lunyu(论语)"]
+        self.nameSourceMenu = tk.Menu(self.main_menu, tearoff=False)
+        self.main_menu.add_cascade(label=self.nameSources[0], menu=self.nameSourceMenu, font=('Arial', 10, 'bold'))
+        for value in self.nameSources[1:]:
+            self.nameSourceMenu.add_radiobutton(value=value, label=value, variable=self.nameSourceVar,
+                                                font=('Arial', 10, 'bold'))
+        self.menubutton.grid(column=1, row=0, padx=20, sticky=tk.W)
+		
+        # entry for parameters are put in the "Input" frame
         self.inputFrame = tk.Frame(master)
-        self.inputFrame.grid(row=0, column=0)
+        self.inputFrame.grid(row=1, column=0)
 
         self.labelDate = tk.Label(self.inputFrame, font=('Arial', 14, 'bold'), text='Pick your due date')
         self.labelDate.grid(column=0, row=1, pady=10)
@@ -377,7 +399,7 @@ class Canvas:
 
         # add a tableview to show the found names
         self.tableFrame = tk.Frame(master)
-        self.tableFrame.grid(row=1, columnspan=4)
+        self.tableFrame.grid(row=2, columnspan=4)
 
         # customize the treeview style
         self.style.configure("mystyle.Treeview", highlightthickness=0, bd=0, font=('Calibri', 15))  # Modify the font of the body
@@ -484,7 +506,7 @@ class Canvas:
             cutoff_score = int(self.cutoffScoreEntry.get())
         else:
             cutoff_score = -99
-        if self.comboHour['state'].string == 'normal':
+        if self.comboHour['state'] == 'normal':
             hour = self.comboHour.get()
             args = ['-s', str(lastName), '-g', str(gender), '-m',
                     str(month), '-d', str(day), '-y', str(year), '-H', str(hour), '-n', str(cutoff_score)]
@@ -497,7 +519,10 @@ class Canvas:
             print('Running fuzzy mode\nsearching for baby name for surname {0}, gender: {1}, date of birth: {2}-{3}-{4}' \
                   .format(args[1], args[3], args[5], args[7], args[9]))
         num_of_matches = int(float(self.numOfNamesSlider.get()))
-        name_tuples = EZName.main(args, num_of_matches=num_of_matches, cutoff_score=cutoff_score)  # run the main program
+        source_file_index = self.nameSources.index(self.nameSourceVar.get())
+        print('{}-{}'.format(self.nameSourceVar.get(), source_file_index))
+        name_tuples = EZName.main(args, num_of_matches=num_of_matches, cutoff_score=cutoff_score,
+                                  source_file_index=source_file_index)  # run the main program
         if not hour:
             for hour_tuple in name_tuples:   # each hour has 'num_of_matches' names found
                 for tuple in hour_tuple:
@@ -533,7 +558,7 @@ class Canvas:
                     recent_configStr = '{0}/{1}/{2}, surname: {3}, gender: {4}, score: {5}' \
                         .format(str(recent_args[5]), str(recent_args[7]), str(recent_args[9]), str(recent_args[1]),
                                 str(recent_args[3]), str(recent_args[11]))
-                self.menu.subRunMenu.entryconfigure(i, label='Run {0}: {1}'.format(i+1, recent_configStr),
+                self.menu.subRunMenu.entryconfigure(i+1, label='Run {0}: {1}'.format(i+1, recent_configStr),
                                                     command=lambda idx=i: self.menu.runWithRecentConfig(idx))
             #self.configQueue.put(args)
             #num_of_recent_runs = len(self.configQueue.queue)
@@ -580,8 +605,10 @@ class Canvas:
         mode = self.lookupMode.get()
         if mode == 1:
             self.comboHour.configure(state='disabled')
+            print(self.comboHour['state'])
         else:
             self.comboHour.configure(state='normal')
+            print(self.comboHour['state'])
 
     def popupCal(self):
         def updateDate():
@@ -599,6 +626,7 @@ class Canvas:
         self.cal.pack(fill="both", expand=True)
         ttk.Button(self.top, text='OK', command=updateDate).pack()
 
+# main level functions
 def on_closing():
     if tm.askokcancel('Quit', 'Do you want to quit?'):
         with open('./input/recentRuns.config', 'w', newline='', encoding='utf8') as csvFile:
@@ -631,7 +659,7 @@ def loadRunConfig(configQueue):
 
 if __name__ == "__main__":
     app = tk.Tk()
-    app.geometry('850x500')
+    app.geometry('850x600')
     app.title('EZName v1.0 (Alpha Release)')
     app.resizable(False, False)   # make the window non-resizeable
     configQueue = Queue(maxsize=10)
