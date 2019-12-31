@@ -40,7 +40,7 @@ def main():
     #    print(link)
     time.sleep(2)
     syllable_difficulties = find_syllable_difficulty(driver=driver, pronunc_links=fine_pronunc_links)
-    with open('pinyin_syllable_difficulty.csv', 'w', newline='') as f:
+    with open('pinyin_syllable_difficulty.csv', 'w', newline='', encoding='utf8') as f:
         col1 = 'Syllable'
         col2 = 'Difficulty for English speakers'
         fieldnames = [col1, col2]

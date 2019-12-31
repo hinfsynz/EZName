@@ -114,7 +114,7 @@ class Menu:
 
     def exit(self):
         if tm.askokcancel('Quit', 'Do you want to quit?'):
-            with open('./input/recentRuns.config', 'w', newline='') as csvFile:
+            with open('./input/recentRuns.config', 'w', newline='', encoding='utf8') as csvFile:
                 writer = csv.DictWriter(csvFile, fieldnames=['Name', 'Gender', 'Month', 'Day', 'Year', 'Hour', 'Score'])
                 writer.writeheader()
                 for row in self.configQueue.queue:
@@ -213,8 +213,9 @@ class Menu:
         if '.txt' not in txtFile:
             txtFile += '.txt'
         args = [scelFile, './input/{}'.format(txtFile)]
-        print('converting {0} to {1}'.format(args[0], args[1]))
+        print('Converting {0} to {1}'.format(args[0], args[1]))
         scel2txt.main(args)
+        print('Done!')
 
     def fetchSyllableDifficulty(self):
         fetch_syllables.main()
@@ -226,7 +227,7 @@ class Menu:
         nameFile = td.askopenfilename(initialdir='./name/',title='Import A Name File',
                                       filetypes=[('Baby Names File', '*.csv'), ('All Files', '*')])
         if nameFile:
-            with open(nameFile, 'r') as f:
+            with open(nameFile, 'r', encoding='utf8') as f:
                 for line in f:
                     if '//' in line: continue   # skip the commented out lines
                     hour = line.split(',')[0].strip()
@@ -243,7 +244,7 @@ class Menu:
 
     def saveNamesToFavourite(self):
         if self.canvas.nameListBox.get_children():
-            with open('babynames.csv', 'w', newline='') as csvFile:
+            with open('babynames.csv', 'w', newline='', encoding='utf8') as csvFile:
                 writer = csv.DictWriter(csvFile, fieldnames=['hour', 'name', 'pinyin', 'score'])
                 writer.writeheader()
                 for i in self.canvas.nameListBox.get_children():
@@ -353,6 +354,7 @@ class Canvas:
         self.cutoffScoreLabel.grid(column=1, row=6)
         self.cutoffScoreEntry = tk.Entry(self.inputFrame, width=3)
         self.cutoffScoreEntry.grid(column=2, row=6)
+        self.cutoffScoreEntry.insert(0, '70')
 
         # add the run button
         self.runBtn = ttk.Button(self.inputFrame, text='Find Names', style='my.TButton', width=10,
@@ -378,7 +380,7 @@ class Canvas:
         self.tableFrame.grid(row=1, columnspan=4)
 
         # customize the treeview style
-        self.style.configure("mystyle.Treeview", highlightthickness=0, bd=0, font=('Calibri', 17))  # Modify the font of the body
+        self.style.configure("mystyle.Treeview", highlightthickness=0, bd=0, font=('Calibri', 15))  # Modify the font of the body
         self.style.configure("mystyle.Treeview.Heading", font=('Calibri', 15, 'bold'))  # Modify the font of the headings
         self.style.layout("mystyle.Treeview", [('mystyle.Treeview.treearea', {'sticky': 'nswe'})])  # Remove the borders
         self.labelTable = tk.Label(self.tableFrame, text="Found Names", font=("Arial", 20, 'bold'))
@@ -436,7 +438,7 @@ class Canvas:
                                       defaultextension=[('Baby Names File', '*.csv')])
         if saveAsFile and self.nameListBox.selection():
             print('Saving selected items to file {}'.format(saveAsFile))
-            with open(saveAsFile, 'w', newline='') as f:
+            with open(saveAsFile, 'w', newline='', encoding='utf8') as f:
                 csvWriter = csv.DictWriter(f, fieldnames=['hour', 'name', 'pinyin', 'score'])
                 csvWriter.writeheader()
                 for i in self.nameListBox.selection():
@@ -451,7 +453,7 @@ class Canvas:
                                           defaultextension=[('Baby Names File', '*.csv')])
         if saveAsFile and self.nameListBox.get_children():
             print('Saving selected items to file {}'.format(saveAsFile))
-            with open(saveAsFile, 'w', newline='') as f:
+            with open(saveAsFile, 'w', newline='', encoding='utf8') as f:
                 csvWriter = csv.DictWriter(f, fieldnames=['hour', 'name', 'pinyin', 'score'])
                 csvWriter.writeheader()
                 for i in self.nameListBox.get_children():
@@ -594,7 +596,7 @@ class Canvas:
 
 def on_closing():
     if tm.askokcancel('Quit', 'Do you want to quit?'):
-        with open('./input/recentRuns.config', 'w', newline='') as csvFile:
+        with open('./input/recentRuns.config', 'w', newline='', encoding='utf8') as csvFile:
             writer = csv.DictWriter(csvFile, fieldnames=['Name', 'Gender', 'Month', 'Day', 'Year', 'Hour', 'Score'])
             writer.writeheader()
             for row in configQueue.queue:
@@ -610,7 +612,7 @@ def on_closing():
 
 def loadRunConfig(configQueue):
     if path.exists('./input/recentRuns.config'):
-        with open('./input/recentRuns.config', newline='') as f:
+        with open('./input/recentRuns.config', newline='', encoding='utf8') as f:
             csvReader = csv.DictReader(f)
             for row in csvReader:
                 if row['Hour'] != 'N/A':

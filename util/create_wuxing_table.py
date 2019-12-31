@@ -7,7 +7,7 @@
 import csv
 
 wuxing_dict = {}
-with open('./db/data/rn_wuxing.sql', 'r') as f:
+with open('../input/rn_wuxing.sql', 'r', encoding='utf8') as f:
     for line in f:
         if 'INSERT' in line:  # this is an insertion operation
             start_pos = line.find('(')
@@ -17,7 +17,7 @@ with open('./db/data/rn_wuxing.sql', 'r') as f:
             wuxing = tuples_str.split(',')[1].split('\'')[1]
             wuxing_dict[word] = wuxing
 
-with open('./input/wuxing_dict.csv', 'w', newline='') as f:
+with open('../input/wuxing_dict_new.csv', 'w', newline='', encoding='utf8') as f:
     col1 = 'Word'
     col2 = 'Wuxing'
     fieldnames = [col1, col2]

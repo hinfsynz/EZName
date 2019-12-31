@@ -220,9 +220,9 @@ def get_name_from_wuxing(gender, wuxing_attrib_list, wuxing_dict, modal_particle
     word_cells_list = []
     online_wuxing_dict = {}
     if gender.upper() == 'M':
-        word_cells_list = [line.strip() for line in open('./input/chuci_clean.txt', 'r')]
+        word_cells_list = [line.strip() for line in open('./input/chuci_clean.txt', 'r', encoding='utf8')]
     elif gender.upper() == 'F':
-        word_cells_list = [line.strip() for line in open('./input/shijing_clean.txt', 'r')]
+        word_cells_list = [line.strip() for line in open('./input/shijing_clean.txt', 'r', encoding='utf8')]
     else:
         print('Sorry. LGBTQ is not supported. ;-(')
     #count = 0
@@ -259,7 +259,7 @@ def get_name_from_wuxing(gender, wuxing_attrib_list, wuxing_dict, modal_particle
     return selected_names
 
 def add_new_word_wuxing_to_dict_file(newdict):
-    with open('./input/wuxing_dict.csv', 'a') as f:
+    with open('./input/wuxing_dict.csv', 'a', encoding='utf8') as f:
         print('adding new words and their wuxing...\n')
         for word in newdict:
             line = '{0},{1}\n'.format(word, newdict[word])
@@ -293,7 +293,7 @@ def get_wuxing_online(word):
 
 def load_difficulty_dict():
     syllable_difficult = {}
-    with open('input/pinyin_syllable_difficulty.csv', newline='') as f:
+    with open('input/pinyin_syllable_difficulty.csv', newline='', encoding='utf8') as f:
         reader = csv.DictReader(f)
         for row in reader:
             #print(row['Syllable'], row['Difficulty for English speakers'])
@@ -315,14 +315,14 @@ def sigint_handler(signum, frame):
 
 def load_wuxing_dict():
     wuxing_dict = {}
-    with open('input/wuxing_dict.csv', newline='') as f:
+    with open('input/wuxing_dict.csv', newline='', encoding='utf8') as f:
         reader = csv.DictReader(f)
         for row in reader:
             wuxing_dict[row['Word']] = row['Wuxing']
     return wuxing_dict
 
 def load_modal_particles():
-    modal_particles = [line.strip() for line in open('input/modal_particles_dict.csv')]
+    modal_particles = [line.strip() for line in open('input/modal_particles_dict.csv', encoding='utf8')]
     return modal_particles 
 
 def init_args_parser():
