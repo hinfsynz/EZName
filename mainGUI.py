@@ -245,11 +245,11 @@ class Menu:
     def saveNamesToFavourite(self):
         if self.canvas.nameListBox.get_children():
             with open('babynames.csv', 'w', newline='', encoding='utf8') as csvFile:
-                writer = csv.DictWriter(csvFile, fieldnames=['hour', 'name', 'pinyin', 'score'])
+                writer = csv.DictWriter(csvFile, fieldnames=['//hour', 'name', 'pinyin', 'score'])
                 writer.writeheader()
                 for i in self.canvas.nameListBox.get_children():
                     row = self.canvas.nameListBox.item(i)['values']
-                    writer.writerow({'hour': row[0], 'name':row[1], 'pinyin':row[2], 'score':row[3]})
+                    writer.writerow({'//hour': row[0], 'name':row[1], 'pinyin':row[2], 'score':row[3]})
 
 
 class Canvas:
@@ -439,11 +439,11 @@ class Canvas:
         if saveAsFile and self.nameListBox.selection():
             print('Saving selected items to file {}'.format(saveAsFile))
             with open(saveAsFile, 'w', newline='', encoding='utf8') as f:
-                csvWriter = csv.DictWriter(f, fieldnames=['hour', 'name', 'pinyin', 'score'])
+                csvWriter = csv.DictWriter(f, fieldnames=['//hour', 'name', 'pinyin', 'score'])
                 csvWriter.writeheader()
                 for i in self.nameListBox.selection():
                     row = self.nameListBox.item(i)['values']
-                    csvWriter.writerow({'hour': row[0], 'name':row[1], 'pinyin': row[2], 'score': row[3]})
+                    csvWriter.writerow({'//hour': row[0], 'name':row[1], 'pinyin': row[2], 'score': row[3]})
             print('Done saving!')
         elif not self.nameListBox.selection():
             print('No item was selected!')
@@ -454,11 +454,11 @@ class Canvas:
         if saveAsFile and self.nameListBox.get_children():
             print('Saving selected items to file {}'.format(saveAsFile))
             with open(saveAsFile, 'w', newline='', encoding='utf8') as f:
-                csvWriter = csv.DictWriter(f, fieldnames=['hour', 'name', 'pinyin', 'score'])
+                csvWriter = csv.DictWriter(f, fieldnames=['//hour', 'name', 'pinyin', 'score'])
                 csvWriter.writeheader()
                 for i in self.nameListBox.get_children():
                     row = self.nameListBox.item(i)['values']
-                    csvWriter.writerow({'hour': row[0], 'name': row[1], 'pinyin': row[2], 'score': row[3]})
+                    csvWriter.writerow({'//hour': row[0], 'name': row[1], 'pinyin': row[2], 'score': row[3]})
             print('Done saving!')
         elif not self.nameListBox.get_children():
             print('No name has been loaded!')
@@ -541,11 +541,16 @@ class Canvas:
                                             # command=lambda idx=num_of_recent_runs - 1: self.menu.runWithRecentConfig(idx))
 
     def checkNameScore(self):
-        print(self.enableNameScoring.get())
         if self.enableNameScoring.get():
             self.cutoffScoreEntry.configure(state='normal')
+            print('Name Scoring mode enabled')
+            self.cutoffScoreEntry.delete(0, tk.END)   # change the score to -99 to disable name scoring
+            self.cutoffScoreEntry.insert(0, '70')
         else:
+            self.cutoffScoreEntry.delete(0, tk.END)   # change the score to -99 to disable name scoring
+            self.cutoffScoreEntry.insert(0, '-99')
             self.cutoffScoreEntry.configure(state='disabled')
+            print('Name Scoring mode disabled')
 
 
     def monthSelectionCallback(self, event):
