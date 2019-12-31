@@ -189,14 +189,14 @@ def select_name(surname, gender, hour, attr, enableScoring, cutoff_score, num_of
                 f.write(full_names[index] + ', ' + name_syllables[index] + ', ' + str(name_scores[index]))
                 f.write('\n')"""
         for index in indices:
-            name_tuples.append([full_names[index], name_syllables[index], str(name_scores[index])])
-            print('{}, {}, {}'.format(full_names[index], name_syllables[index], str(name_scores[index])))
+            name_tuples.append([hour, full_names[index], name_syllables[index], str(name_scores[index])])
+            print('{}, {}, {}, {}'.format(hour, full_names[index], name_syllables[index], str(name_scores[index])))
 
     else:
         # if name scoring is not requested, simply return the name tuples
         for i, name in enumerate(full_names):
-            name_tuples.append([name, name_syllables[i], 'N/A'])
-            print('{}, {}, N/A'.format(full_names[i], name_syllables[i]))
+            name_tuples.append([hour, name, name_syllables[i], 'N/A'])
+            print('{}, {}, {}, N/A'.format(hour, full_names[i], name_syllables[i]))
 
     return name_tuples
 
@@ -331,7 +331,7 @@ def main(args, num_of_matches, cutoff_score=SCORE_LINE):
         name_tuples = []
         for hour in range(0, 24):
             attr_list = output_wuxing(args_tuple[0].y, args_tuple[0].m, args_tuple[0].d, hour)
-            name_tuples.append(select_name(args_tuple[0].s, args_tuple[0].g, hour, attr_list,
+            name_tuples.append(select_name(args_tuple[0].s, args_tuple[0].g, str(hour), attr_list,
                                enableScoring=nameScoring, cutoff_score=cutoff_score, num_of_matches=num_of_matches))
 
     return name_tuples
@@ -365,4 +365,4 @@ if __name__ == '__main__':
     else:    # no hour is specified, select names for all hours of that day
         for hour in range(0, 24):
             attr_list = output_wuxing(args.y, args.m, args.d, hour)
-            select_name(args.s, args.g, hour, attr_list, enableScoring=nameScoring, cutoff_score=SCORE_LINE)
+            select_name(args.s, args.g, str(hour), attr_list, enableScoring=nameScoring, cutoff_score=SCORE_LINE)

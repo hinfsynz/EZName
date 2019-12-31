@@ -16,6 +16,7 @@ import csv
 from calendar import monthrange
 from tkcalendar import Calendar, DateEntry
 from os import path
+import platform
 import EZName
 import util.scel2txt as scel2txt
 import util.fetch_syllables as fetch_syllables
@@ -140,16 +141,20 @@ class Menu:
             day = self.canvas.comboDay.get()
             year = self.canvas.comboYear.get()
             gender = self.canvas.comboGender.get()
+            if self.canvas.cutoffScoreEntry.get():
+                cutoff_score = int(self.canvas.cutoffScoreEntry.get())
+            else:
+                cutoff_score = -99
             if self.canvas.comboHour['state'].string == 'normal':
                 hour = self.canvas.comboHour.get()
                 args = ['-s', str(lastName), '-g', str(gender), '-m',
-                        str(month), '-d', str(day), '-y', str(year), '-H', str(hour), '-n', str(self.canvas.enableNameScoring.get())]
+                        str(month), '-d', str(day), '-y', str(year), '-H', str(hour), '-n', str(cutoff_score)]
                 print('Running exact mode\nsearching baby name for surname {0}, gender: {1} date of birth: {2}-{3}-{4}, hour: {5}' \
                       .format(args[1], args[3], args[5], args[7], args[9], args[11]))
             else:
                 hour = None
                 args = ['-s', str(lastName), '-g', str(gender), '-m',
-                        str(month), '-d', str(day), '-y', str(year), '-n', str(self.canvas.enableNameScoring.get())]
+                        str(month), '-d', str(day), '-y', str(year), '-n', str(cutoff_score)]
                 print('Running fuzzy mode\nsearching for baby name for surname {0}, gender: {1}, date of birth: {2}-{3}-{4}' \
                       .format(args[1], args[3], args[5], args[7], args[9]))
             num_of_matches = int(float(self.canvas.numOfNamesSlider.get()))
@@ -158,8 +163,14 @@ class Menu:
                 name_tuples = EZName.main(args, num_of_matches=num_of_matches, cutoff_score=cutoff_score)   # run the main program
             else:
                 name_tuples = EZName.main(args, num_of_matches=num_of_matches)
-            for tuple in name_tuples:
-                self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2]))
+
+            if not hour:
+                for hour_tuple in name_tuples:
+                    for tuple in hour_tuple:
+                        self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2], tuple[3]))
+            else:
+                for tuple in name_tuples:
+                    self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2], tuple[3]))
             print('Done!')
         else:
             print('Error! Canvas is not initialized!')
@@ -169,8 +180,13 @@ class Menu:
         print('config: {}'.format(idx))
         args = self.configQueue.queue[idx]
         name_tuples = EZName.main(args, num_of_matches=int(self.canvas.numOfNamesSlider.get()))
-        for tuple in name_tuples:
-            self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2]))
+        if '-H' not in args:
+            for hour_tuple in name_tuples:
+                for tuple in hour_tuple:
+                    self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2], tuple[3]))
+        else:
+            for tuple in name_tuples:
+                self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2], tuple[3]))
         print("Done running recent config '{}'".format(idx+1))
 
     def sampleRun(self):
@@ -179,7 +195,7 @@ class Menu:
               .format(args[1], args[3], args[7], args[9], args[5]))
         name_tuples = EZName.main(args, num_of_matches=5)
         for tuple in name_tuples:
-            self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2])) 
+            self.canvas.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2], tuple[3]))
         print('Done! Exiting test mode...')
 
 
@@ -207,11 +223,12 @@ class Menu:
             with open(nameFile, 'r') as f:
                 for line in f:
                     if '//' in line: continue   # skip the commented out lines
-                    name = line.split(',')[0].strip()
-                    pinyin = line.split(',')[1].strip()
-                    score = line.split(',')[2].strip()
+                    hour = line.split(',')[0].strip()
+                    name = line.split(',')[1].strip()
+                    pinyin = line.split(',')[2].strip()
+                    score = line.split(',')[3].strip()
                     if self.canvas:
-                        self.canvas.nameListBox.insert('', 'end', values=(name, pinyin, score))
+                        self.canvas.nameListBox.insert('', 'end', values=(hour, name, pinyin, score))
 
     def clearNamesFromList(self):
         if self.canvas:
@@ -221,11 +238,11 @@ class Menu:
     def saveNamesToFavourite(self):
         if self.canvas.nameListBox.get_children():
             with open('babynames.csv', 'w', newline='') as csvFile:
-                writer = csv.DictWriter(csvFile, fieldnames=['name', 'pinyin', 'score'])
+                writer = csv.DictWriter(csvFile, fieldnames=['hour', 'name', 'pinyin', 'score'])
                 writer.writeheader()
                 for i in self.canvas.nameListBox.get_children():
                     row = self.canvas.nameListBox.item(i)['values']
-                    writer.writerow({'name':row[0], 'pinyin':row[1], 'score':row[2]})
+                    writer.writerow({'hour': row[0], 'name':row[1], 'pinyin':row[2], 'score':row[3]})
 
 
 class Canvas:
@@ -291,7 +308,7 @@ class Canvas:
         btnNum = 0
         for (text, value) in lookupModeValues.items():
             self.btnModeSelect = tk.Radiobutton(self.inputFrame, text=text, variable=self.lookupMode, value=value, command=self.selectMode)
-            self.btnModeSelect.grid(column=5, row=3 + btnNum)
+            self.btnModeSelect.grid(column=6, row=3 + btnNum)
             btnNum += 1
 
         self.comboMonth.bind("<<ComboboxSelected>>", self.monthSelectionCallback)
@@ -304,7 +321,7 @@ class Canvas:
         # add a label and textbox for last name entry
         self.lastNameLabel = tk.Label(self.inputFrame, font=('Arial', 14, 'bold'), text='Your last name')
         self.lastNameLabel.grid(column=0, row=5, pady=10)
-        self.lastNameEntry = tk.Entry(self.inputFrame, width=5)
+        self.lastNameEntry = tk.Entry(self.inputFrame, width=10)
         self.lastNameEntry.grid(column=1, row=5)
 
         # add a label and combobox for baby gender
@@ -361,20 +378,23 @@ class Canvas:
         self.labelTable = tk.Label(self.tableFrame, text="Found Names", font=("Arial", 20, 'bold'))
         self.labelTable.grid(row=0, columnspan=4)
         # create Treeview with 3 columns
-        self.tableCols = ('Name', 'Pinyin', 'Score')
+        self.tableCols = ('Hour', 'Name', 'Pinyin', 'Score')
         self.nameListBox = ttk.Treeview(self.tableFrame, style='mystyle.Treeview', columns=self.tableCols, show='headings')
         # set column headings
         for col in self.tableCols:
             self.nameListBox.heading(col, text=col)
-        self.nameListBox.bind('<Button-2>', self.popupMenu)
+        if platform.system() == 'Darwin':
+            self.nameListBox.bind('<Button-2>', self.popupMenu)
+        else:  # Windows
+            self.nameListBox.bind('<Button-3>', self.popupMenu)
         self.nameListBox.bind('<<TreeviewSelect>>')
-        self.nameListBox.grid(row=1, column=0, columnspan=4, sticky=tk.W)
+        self.nameListBox.grid(row=1, rowspan=10, column=0, columnspan=4, padx=20, sticky=tk.W)
 
         # add a scrollbar and attach it to the treeview
         self.nameListScroll = ttk.Scrollbar(self.tableFrame, orient='vertical', command=self.nameListBox.yview)
         #self.nameListScroll.place(height=400)
         self.nameListBox.configure(yscrollcommand=self.nameListScroll.set)
-        self.nameListScroll.grid(row=1, column=3, sticky=tk.E)
+        self.nameListScroll.grid(row=1, column=4, sticky=tk.E)
 
         # create a popup menu for the right click activity
         self.treeRightClickMenu = tk.Menu(self.tableFrame, tearoff=0)
@@ -411,11 +431,11 @@ class Canvas:
         if saveAsFile and self.nameListBox.selection():
             print('Saving selected items to file {}'.format(saveAsFile))
             with open(saveAsFile, 'w', newline='') as f:
-                csvWriter = csv.DictWriter(f, fieldnames=['name', 'pinyin', 'score'])
+                csvWriter = csv.DictWriter(f, fieldnames=['hour', 'name', 'pinyin', 'score'])
                 csvWriter.writeheader()
                 for i in self.nameListBox.selection():
                     row = self.nameListBox.item(i)['values']
-                    csvWriter.writerow({'name':row[0], 'pinyin': row[1], 'score': row[2]})
+                    csvWriter.writerow({'hour': row[0], 'name':row[1], 'pinyin': row[2], 'score': row[3]})
             print('Done saving!')
         elif not self.nameListBox.selection():
             print('No item was selected!')
@@ -426,11 +446,11 @@ class Canvas:
         if saveAsFile and self.nameListBox.get_children():
             print('Saving selected items to file {}'.format(saveAsFile))
             with open(saveAsFile, 'w', newline='') as f:
-                csvWriter = csv.DictWriter(f, fieldnames=['name', 'pinyin', 'score'])
+                csvWriter = csv.DictWriter(f, fieldnames=['hour', 'name', 'pinyin', 'score'])
                 csvWriter.writeheader()
                 for i in self.nameListBox.get_children():
                     row = self.nameListBox.item(i)['values']
-                    csvWriter.writerow({'name': row[0], 'pinyin': row[1], 'score': row[2]})
+                    csvWriter.writerow({'hour': row[0], 'name': row[1], 'pinyin': row[2], 'score': row[3]})
             print('Done saving!')
         elif not self.nameListBox.get_children():
             print('No name has been loaded!')
@@ -473,10 +493,10 @@ class Canvas:
         if not hour:
             for hour_tuple in name_tuples:   # each hour has 'num_of_matches' names found
                 for tuple in hour_tuple:
-                    self.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2]))
+                    self.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2], tuple[3]))
         else:
             for tuple in name_tuples:
-                self.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2]))
+                self.nameListBox.insert('', 'end', values=(tuple[0], tuple[1], tuple[2], tuple[3]))
         print('Done!')
 
         # update the label of the 'Load Recent Run' submenu
@@ -598,7 +618,7 @@ def loadRunConfig(configQueue):
 
 if __name__ == "__main__":
     app = tk.Tk()
-    app.geometry('750x500')
+    app.geometry('850x500')
     app.title('EZName v1.0 (Alpha Release)')
     app.resizable(False, False)   # make the window non-resizeable
     configQueue = Queue(maxsize=10)
