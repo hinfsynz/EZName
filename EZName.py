@@ -343,7 +343,7 @@ def init_args_parser():
     parser.add_argument("-H", type=int, choices=range(0, 24), metavar="hour", required=False,
                         help="Hour of birth datetime.")
     parser.add_argument("-n", type=int, metavar="namescore", required=False, help="Get name score?")
-    parser.add_argument("-i", type=int, metavar="sourceindex", required=False, help="Specify the index of name source file")
+    parser.add_argument("-i", type=int, choices=range(1, 4), metavar="sourceindex", required=False, help="Specify the index of name source file")
 
     return parser
 
