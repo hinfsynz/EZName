@@ -203,7 +203,13 @@ class Menu:
         #args = ['/Users/hinfsynz/Downloads/楚辞全部语句.scel', '/Users/hinfsynz/Downloads/test.txt']
         scelFile = td.askopenfilename(initialdir='/', title='Open a *.scel file to convert',
                                       filetypes=[('Sougou Cell Thesaurus files', '*.scel')])
+        if not scelFile:
+            print('converting operation cancelled by user')
+            return
         txtFile = sd.askstring('Input', 'Give a name to the expected *.txt file', parent=self.master)
+        if not txtFile:
+            print('converting operation cancelled by user')
+            return
         if '.txt' not in txtFile:
             txtFile += '.txt'
         args = [scelFile, './input/{}'.format(txtFile)]
