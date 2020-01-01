@@ -145,7 +145,7 @@ class Menu:
                 cutoff_score = int(self.canvas.cutoffScoreEntry.get())
             else:
                 cutoff_score = -99
-            if self.canvas.comboHour['state'] == 'normal':
+            if self.canvas.comboHour['state'].string == tk.NORMAL:
                 hour = self.canvas.comboHour.get()
                 args = ['-s', str(lastName), '-g', str(gender), '-m',
                         str(month), '-d', str(day), '-y', str(year), '-H', str(hour), '-n', str(cutoff_score)]
@@ -506,7 +506,7 @@ class Canvas:
             cutoff_score = int(self.cutoffScoreEntry.get())
         else:
             cutoff_score = -99
-        if self.comboHour['state'] == 'normal':
+        if self.comboHour['state'].string == tk.NORMAL:
             hour = self.comboHour.get()
             args = ['-s', str(lastName), '-g', str(gender), '-m',
                     str(month), '-d', str(day), '-y', str(year), '-H', str(hour), '-n', str(cutoff_score)]
