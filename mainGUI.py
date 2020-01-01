@@ -418,7 +418,7 @@ class Canvas:
         else:  # Windows
             self.nameListBox.bind('<Button-3>', self.popupMenu)
         self.nameListBox.bind('<<TreeviewSelect>>')
-        self.nameListBox.grid(row=1, rowspan=10, column=0, columnspan=4, padx=20, sticky=tk.W)
+        self.nameListBox.grid(row=1, rowspan=15, column=0, columnspan=4, padx=20, sticky=tk.W)
 
         # add a scrollbar and attach it to the treeview
         self.nameListScroll = ttk.Scrollbar(self.tableFrame, orient='vertical', command=self.nameListBox.yview)
