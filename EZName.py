@@ -27,6 +27,8 @@ import sys
 import signal
 import csv
 import random
+import fnmatch
+import os
 from util.boxcalendar import *
 
 SCORE_LINE = 70
@@ -126,19 +128,20 @@ def output_wuxing(year, month, day, hour):
     print("[*] 五行属性：%s\n" % ', '.join(name_attr))
     return attr_list
 
-def select_name(surname, gender, hour, attr, source_file_index, wuxing_dict, difficulty_dict,
-                modal_particles, enableScoring, cutoff_score, num_of_matches=5):
+def select_name(surname, gender, hour, attr, name_source, wuxing_dict, difficulty_dict,
+                modal_particles, enableScoring, easy_mode, cutoff_score, num_of_matches=5):
     '''
     Select name based on Wuxing attributes and difficulty of the words' pinyin syllables
     gender = M: select words from <chuci>
     gender = F: select words from <shijing>
     hour = 0 ~ 23: the exact hour when the baby was born
     attr: list of wuxing attributes
-	source_file_index: the index to indicate which dictionary is used for name picking
+	name_source: the dictionary is used for name picking
     wuxing_dict: wuxing dictionary, input - Chinese word; output -wuxing
     difficulty_dict: pinyin syllable difficulty dictionary, input - pinyin syllable; output - difficulty level
                      e.g., 'Hao' - Low, 'Zuo' - High, 'Xuan' - Very High 
     enableScoring: True - get name score from some online website
+    easy_mode: True - turn on easy-to-pronounce mode
     cutoff_score: int - the cutoff value below which the name will not be considered
     '''
     sur_type = 1 if len(surname) == 1 else 2
@@ -147,7 +150,7 @@ def select_name(surname, gender, hour, attr, source_file_index, wuxing_dict, dif
     full_names = []
     name_syllables = []
     name_scores = []
-    found_names = get_name_from_wuxing(gender, attr, source_file_index, wuxing_dict, modal_particles)
+    found_names = get_name_from_wuxing(gender, attr, name_source, wuxing_dict, modal_particles)
     count = 0
     while match_count < num_of_matches and count < SEARCH_LIMIT:
         name = found_names[random.randint(0, len(found_names) - 1)] # randomly pick a name from the matched names
@@ -167,7 +170,7 @@ def select_name(surname, gender, hour, attr, source_file_index, wuxing_dict, dif
             letters += len(n)
             n = capitalize_first_letter(n)
             if n in difficulty_dict:
-                if difficulty_dict[n] != 'Low':
+                if is_no_easier_than(difficulty_dict[n], 'High') and easy_mode:
                     isHard = True
         if letters > 6 or isHard:  # if any of the syllables is hard for English speakers, just skip it
             print('pinyin is too long or too hard')
@@ -212,16 +215,33 @@ def select_name(surname, gender, hour, attr, source_file_index, wuxing_dict, dif
 
     return name_tuples
 
+def is_no_easier_than(lvl1, lvl2):
+    known_levels = {'Low':1, 'Medium':2, 'High':3, 'Very High':4}
+    if lvl1 not in known_levels or lvl2 not in known_levels:
+        raise Exception('Unknown difficulty level detected: {} or {}'.format(lvl1, lvl2))
+    else:
+        if known_levels[lvl1] >= known_levels[lvl2]:
+            return True
+        else:
+            return False
 
-def get_name_from_wuxing(gender, wuxing_attrib_list, source_file_index, wuxing_dict, modal_particles):
+def find_name_sources():
+    name_sources = []
+    for file_name in os.listdir('./input/'):
+        if fnmatch.fnmatch(file_name, '*.txt') and '_' not in file_name:
+            name_sources.append(os.path.splitext(file_name)[0])
+    return name_sources
+
+def get_name_from_wuxing(gender, wuxing_attrib_list, name_source, wuxing_dict, modal_particles):
     '''
     get name from word cells based on the wuxing attributes in the given list
     '''
     selected_names = []
     word_cells_list = []
     online_wuxing_dict = {}
-    name_sources = ['M-chuci,F-shijing', 'IChing', 'Lunyu']
-    if source_file_index == 1:
+    #sources = find_name_sources()
+    #name_sources = ['M-chuci,F-shijing', 'IChing', 'Lunyu']
+    if 'Chuci' in name_source and 'Shijing' in name_source:
         if gender.upper() == 'M':
             word_cells_list = [line.strip() for line in open('./input/chuci.txt', 'r', encoding='utf8')]
         elif gender.upper() == 'F':
@@ -229,7 +249,9 @@ def get_name_from_wuxing(gender, wuxing_attrib_list, source_file_index, wuxing_d
         else:
             print('Sorry. LGBTQ is not supported. ;-(')
     else:
-        word_cells_list = [line.strip() for line in open('./input/{}.txt'.format(name_sources[source_file_index-1]), 'r', encoding='utf-8')]
+        if '(' in name_source:
+            name_source = name_source.split('(')[0]
+        word_cells_list = [line.strip() for line in open('./input/{}.txt'.format(name_source), 'r', encoding='utf-8')]
     #count = 0
     for word_cells in word_cells_list:
         filtered_word_cells = []
@@ -343,7 +365,8 @@ def init_args_parser():
     parser.add_argument("-H", type=int, choices=range(0, 24), metavar="hour", required=False,
                         help="Hour of birth datetime.")
     parser.add_argument("-n", type=int, metavar="namescore", required=False, help="Get name score?")
-    parser.add_argument("-i", type=int, choices=range(1, 4), metavar="sourceindex", required=False, help="Specify the index of name source file")
+    parser.add_argument("-i", metavar="namesource", required=False, help="Specify the name source file")
+    parser.add_argument("-e", type=bool, metavar="easy-to-pronounce mode", required=False, help="Turn on easy-to-pronounce mode?")
 
     return parser
 
@@ -355,7 +378,7 @@ def load_dictionaries():   # load required dictionaries priori to name searching
     
     return (wuxing_dict, difficulty_dict, modal_particles)
 
-def main(args, num_of_matches, cutoff_score=SCORE_LINE, source_file_index=1):
+def main(args, num_of_matches, cutoff_score=SCORE_LINE, name_source='M-Chuci,F-Shijing', easy_mode=True):
     signal.signal(signal.SIGINT, sigint_handler)
 
     parser = init_args_parser()
@@ -371,14 +394,16 @@ def main(args, num_of_matches, cutoff_score=SCORE_LINE, source_file_index=1):
 
     if args_tuple[0].H:
         attr_list = output_wuxing(args_tuple[0].y, args_tuple[0].m, args_tuple[0].d, args_tuple[0].H)
-        name_tuples = select_name(args_tuple[0].s, args_tuple[0].g, args_tuple[0].H, attr_list, source_file_index, wuxing_dict, difficulty_dict,
-                      modal_particles, enableScoring=nameScoring, cutoff_score=cutoff_score, num_of_matches=num_of_matches)
+        name_tuples = select_name(args_tuple[0].s, args_tuple[0].g, args_tuple[0].H, attr_list, name_source, wuxing_dict, difficulty_dict,
+                                  modal_particles, enableScoring=nameScoring, easy_mode=easy_mode,
+                                  cutoff_score=cutoff_score, num_of_matches=num_of_matches)
     else:  # no hour is specified, select names for all hours of that day
         name_tuples = []
         for hour in range(0, 24):
             attr_list = output_wuxing(args_tuple[0].y, args_tuple[0].m, args_tuple[0].d, hour)
-            name_tuples.append(select_name(args_tuple[0].s, args_tuple[0].g, hour, attr_list, source_file_index, wuxing_dict, difficulty_dict,
-                               modal_particles, enableScoring=nameScoring, cutoff_score=cutoff_score, num_of_matches=num_of_matches))
+            name_tuples.append(select_name(args_tuple[0].s, args_tuple[0].g, hour, attr_list, name_source, wuxing_dict, difficulty_dict,
+                                           modal_particles, enableScoring=nameScoring, easy_mode=easy_mode,
+                                           cutoff_score=cutoff_score, num_of_matches=num_of_matches))
 
     return name_tuples
 
@@ -396,16 +421,21 @@ if __name__ == '__main__':
         nameScoring = True
 
     if args.i:
-        source_file_index = args.i if args.i > 0 else 1
+        name_source = args.i
     else:
-        source_file_index = 1
+        name_source = 'M-Chuci,F-Shijing'
+
+    if args.e:
+        easy_mode = args.e
+    else:
+        easy_mode = True
 
     if args.H:
         attr_list = output_wuxing(args.y, args.m, args.d, args.H)
-        select_name(args.s, args.g, args.H, attr_list, source_file_index, wuxing_dict, difficulty_dict,
-                    modal_particles, enableScoring=nameScoring, cutoff_score=SCORE_LINE)
+        select_name(args.s, args.g, args.H, attr_list, name_source, wuxing_dict, difficulty_dict,
+                    modal_particles, enableScoring=nameScoring, easy_mode=easy_mode, cutoff_score=SCORE_LINE)
     else:    # no hour is specified, select names for all hours of that day
         for hour in range(0, 24):
             attr_list = output_wuxing(args.y, args.m, args.d, hour)
-            select_name(args.s, args.g, hour, attr_list, source_file_index, wuxing_dict, difficulty_dict,
-                    modal_particles, enableScoring=nameScoring, cutoff_score=SCORE_LINE)
+            select_name(args.s, args.g, hour, attr_list, name_source, wuxing_dict, difficulty_dict,
+                    modal_particles, enableScoring=nameScoring, easy_mode=easy_mode, cutoff_score=SCORE_LINE)

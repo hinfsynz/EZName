@@ -158,12 +158,17 @@ class Menu:
                 print('Running fuzzy mode\nsearching for baby name for surname {0}, gender: {1}, date of birth: {2}-{3}-{4}' \
                       .format(args[1], args[3], args[5], args[7], args[9]))
             num_of_matches = int(float(self.canvas.numOfNamesSlider.get()))
-            source_file_index = self.nameSources.index(self.nameSourceVar.get())
+            #source_file_index = self.nameSources.index(self.nameSourceVar.get())
+            easy_mode = self.canvas.enableEasy2Pronounce.get()
+            print('Easy-to-pronounce mode: {}'.format('On' if easy_mode else 'Off'))
+            name_source = self.canvas.nameSourceVar.get()
+            print('name source:{}'.format(name_source))
             if self.canvas.cutoffScoreEntry.get():
                 cutoff_score = int(self.canvas.cutoffScoreEntry.get())
-                name_tuples = EZName.main(args, num_of_matches=num_of_matches, cutoff_score=cutoff_score, source_file_index=source_file_index)   # run the main program
+                name_tuples = EZName.main(args, num_of_matches=num_of_matches, cutoff_score=cutoff_score, name_source=name_source,
+                                          easy_mode=easy_mode)   # run the main program
             else:
-                name_tuples = EZName.main(args, num_of_matches=num_of_matches, source_file_index=source_file_index)
+                name_tuples = EZName.main(args, num_of_matches=num_of_matches, name_source=name_source)
 
             if not hour:
                 for hour_tuple in name_tuples:
@@ -180,8 +185,12 @@ class Menu:
     def runWithRecentConfig(self, idx):
         print('config: {}'.format(idx))
         args = self.configQueue.queue[idx]
-        source_file_index = self.nameSources.index(self.nameSourceVar.get())
-        name_tuples = EZName.main(args, num_of_matches=int(self.canvas.numOfNamesSlider.get()), source_file_index=source_file_index)
+        #source_file_index = self.canvas.nameSources.index(self.canvas.nameSourceVar.get())
+        easy_mode = self.canvas.enableEasy2Pronounce.get()
+        print('Easy-to-pronounce mode: {}'.format('On' if easy_mode else 'Off'))
+        name_source = self.canvas.nameSourceVar.get()
+        name_tuples = EZName.main(args, num_of_matches=int(self.canvas.numOfNamesSlider.get()), name_source=name_source,
+                                  easy_mode=easy_mode)
         if '-H' not in args:
             for hour_tuple in name_tuples:
                 for tuple in hour_tuple:
@@ -274,13 +283,13 @@ class Canvas:
         self.soureFrame = tk.Frame(master)
         self.soureFrame.grid(row=0, column=0, padx=20, pady=20, sticky=tk.W)
         self.labelSource = tk.Label(self.soureFrame, font=('Arial', 14, 'bold'), text='Name Source:')
-        self.labelSource.grid(column=0, row=0)
+        self.labelSource.grid(column=0, row=0, sticky=tk.W)
         self.nameSourceVar = tk.StringVar(value="M-Chuci,F-Shijing(男楚辞,女诗经)")
         self.menubutton = tk.Menubutton(self.soureFrame, textvariable=self.nameSourceVar, indicatoron=True,
                                         borderwidth=1, relief="raised")
         self.main_menu = tk.Menu(self.menubutton, tearoff=False)
         self.menubutton.configure(menu=self.main_menu, width=30, font=('Arial', 12, 'bold'))
-        self.nameSources = ["Alternate Name Sources", "M-Chuci,F-Shijing(男楚辞,女诗经)", "IChing(易经)", "Lunyu(论语)"]
+        self.nameSources = ["Alternative Name Sources", "M-Chuci,F-Shijing(男楚辞,女诗经)", "IChing(易经)", "Lunyu(论语)"]
         self.nameSourceMenu = tk.Menu(self.main_menu, tearoff=False)
         self.main_menu.add_cascade(label=self.nameSources[0], menu=self.nameSourceMenu, font=('Arial', 10, 'bold'))
         for value in self.nameSources[1:]:
@@ -293,7 +302,7 @@ class Canvas:
         self.inputFrame.grid(row=1, column=0)
 
         self.labelDate = tk.Label(self.inputFrame, font=('Arial', 14, 'bold'), text='Pick your due date')
-        self.labelDate.grid(column=0, row=1, pady=10)
+        self.labelDate.grid(column=0, row=1, pady=10, sticky=tk.W)
 
         self.labelMonth = tk.Label(self.inputFrame, text='Month')
         self.labelMonth.grid(column=0, row=2, sticky=tk.W)
@@ -328,7 +337,7 @@ class Canvas:
 
         # add a combobox for hour selection
         self.comboHour = ttk.Combobox(self.inputFrame, height=20, width=5, values=[i for i in range(0, 24)], state='disabled')
-        self.comboHour.grid(column=4, row=3)
+        self.comboHour.grid(column=4, row=3, sticky=tk.W)
         self.comboHour.current(0)
 
         # add a radiobutton for lookup mode
@@ -345,19 +354,19 @@ class Canvas:
         self.comboYear.bind("<<ComboboxSelected>>", self.yearSelectionCallback)
         self.comboHour.bind("<<ComboboxSelected>>", self.hourSelectionCallback)
         self.calBtn = ttk.Button(self.inputFrame, image=self.calIcon, command=self.popupCal, width=1)
-        self.calBtn.grid(column=3, row=3)
+        self.calBtn.grid(column=3, row=3, sticky=tk.W)
 
         # add a label and textbox for last name entry
         self.lastNameLabel = tk.Label(self.inputFrame, font=('Arial', 14, 'bold'), text='Your last name')
-        self.lastNameLabel.grid(column=0, row=5, pady=10)
+        self.lastNameLabel.grid(column=0, row=5, pady=10, sticky=tk.W)
         self.lastNameEntry = tk.Entry(self.inputFrame, width=10)
-        self.lastNameEntry.grid(column=1, row=5)
+        self.lastNameEntry.grid(column=1, row=5, sticky=tk.W)
 
         # add a label and combobox for baby gender
         self.genderLabel = tk.Label(self.inputFrame, font=('Arial', 14, 'bold'), text='Gender')
-        self.genderLabel.grid(column=2, row=5)
+        self.genderLabel.grid(column=2, row=5, sticky=tk.W)
         self.comboGender = ttk.Combobox(self.inputFrame, height=2, width=2, values=['M', 'F'])
-        self.comboGender.grid(column=3, row=5)
+        self.comboGender.grid(column=3, row=5, sticky=tk.W)
         self.comboGender.set('M')
 
 
@@ -365,7 +374,7 @@ class Canvas:
         self.enableNameScoring = tk.BooleanVar(self.inputFrame, True)
         self.chkBtn = ttk.Checkbutton(self.inputFrame, variable=self.enableNameScoring, onvalue=True, offvalue=False,
                                       text='Get name score?', command=self.checkNameScore)
-        self.chkBtn.grid(column=0, row=6)
+        self.chkBtn.grid(column=0, row=6, sticky=tk.W)
 
 
         self.style = ttk.Style()
@@ -396,6 +405,13 @@ class Canvas:
         self.sliderHoverText = ttk.Label(self.inputFrame, text='Hover over the slider\nfor hint')
         self.sliderHoverText.configure(foreground='Orange', font=('Calibri', 11))
         self.sliderHoverText.grid(column=4, row=5)
+
+        # add a checkbox to indicate if enable easy-to-pronounce feature
+        self.enableEasy2Pronounce = tk.BooleanVar(self.inputFrame, True)
+        self.chkBtn2 = ttk.Checkbutton(self.inputFrame, variable=self.enableEasy2Pronounce, onvalue=True, offvalue=False,
+                                      text="Enable 'easy-to-pronounce'?", command=self.checkEasyMode)
+        self.chkBtn2.grid(column=0, row=7, sticky=tk.W)
+
 
         # add a tableview to show the found names
         self.tableFrame = tk.Frame(master)
@@ -519,10 +535,12 @@ class Canvas:
             print('Running fuzzy mode\nsearching for baby name for surname {0}, gender: {1}, date of birth: {2}-{3}-{4}' \
                   .format(args[1], args[3], args[5], args[7], args[9]))
         num_of_matches = int(float(self.numOfNamesSlider.get()))
-        source_file_index = self.nameSources.index(self.nameSourceVar.get())
-        print('{}-{}'.format(self.nameSourceVar.get(), source_file_index))
+        #source_file_index = self.nameSources.index(self.nameSourceVar.get())
+        #print('{}-{}'.format(self.nameSourceVar.get(), source_file_index))
+        easy_mode = self.enableEasy2Pronounce.get()
+        print('Easy-to-pronounce mode: {}'.format('On' if easy_mode else 'Off'))
         name_tuples = EZName.main(args, num_of_matches=num_of_matches, cutoff_score=cutoff_score,
-                                  source_file_index=source_file_index)  # run the main program
+                                  name_source=self.nameSourceVar.get(), easy_mode=easy_mode)  # run the main program
         if not hour:
             for hour_tuple in name_tuples:   # each hour has 'num_of_matches' names found
                 for tuple in hour_tuple:
@@ -577,6 +595,11 @@ class Canvas:
             self.cutoffScoreEntry.configure(state='disabled')
             print('Name Scoring mode disabled')
 
+    def checkEasyMode(self):
+        if self.enableEasy2Pronounce.get():
+            print('easy-to-pronounce mode: On')
+        else:
+            print('easy-to-pronounce mode: Off')
 
     def monthSelectionCallback(self, event):
          print('selected month: {}'.format(self.comboMonth.get()))
