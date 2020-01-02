@@ -27,8 +27,6 @@ import sys
 import signal
 import csv
 import random
-import fnmatch
-import os
 from util.boxcalendar import *
 
 SCORE_LINE = 70
@@ -224,13 +222,6 @@ def is_no_easier_than(lvl1, lvl2):
             return True
         else:
             return False
-
-def find_name_sources():
-    name_sources = []
-    for file_name in os.listdir('./input/'):
-        if fnmatch.fnmatch(file_name, '*.txt') and '_' not in file_name:
-            name_sources.append(os.path.splitext(file_name)[0])
-    return name_sources
 
 def get_name_from_wuxing(gender, wuxing_attrib_list, name_source, wuxing_dict, modal_particles):
     '''

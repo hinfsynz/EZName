@@ -14,8 +14,9 @@ except ImportError:
 import datetime
 import csv
 from calendar import monthrange
-from tkcalendar import Calendar, DateEntry
-from os import path
+from tkcalendar import Calendar
+import os
+import fnmatch
 import platform
 import EZName
 import util.scel2txt as scel2txt
@@ -290,6 +291,8 @@ class Canvas:
         self.main_menu = tk.Menu(self.menubutton, tearoff=False)
         self.menubutton.configure(menu=self.main_menu, width=30, font=('Arial', 12, 'bold'))
         self.nameSources = ["Alternative Name Sources", "M-Chuci,F-Shijing(男楚辞,女诗经)", "IChing(易经)", "Lunyu(论语)"]
+        user_added_sources = self.find_user_added_name_sources()
+        self.nameSources += user_added_sources    # if user added sources is not empty, add them for selection of name sources
         self.nameSourceMenu = tk.Menu(self.main_menu, tearoff=False)
         self.main_menu.add_cascade(label=self.nameSources[0], menu=self.nameSourceMenu, font=('Arial', 10, 'bold'))
         for value in self.nameSources[1:]:
@@ -649,6 +652,15 @@ class Canvas:
         self.cal.pack(fill="both", expand=True)
         ttk.Button(self.top, text='OK', command=updateDate).pack()
 
+    def find_user_added_name_sources(self):
+        name_sources = []
+        for file_name in os.listdir('./input/'):
+            if fnmatch.fnmatch(file_name, '*.txt') and '_' not in file_name:
+                if any(True for x in ['chuci', 'shijing', 'IChing', 'Lunyu'] if x in file_name):
+                    continue
+                name_sources.append(os.path.splitext(file_name)[0])
+        return name_sources
+
 # main level functions
 def on_closing():
     if tm.askokcancel('Quit', 'Do you want to quit?'):
@@ -667,7 +679,7 @@ def on_closing():
         app.destroy()
 
 def loadRunConfig(configQueue):
-    if path.exists('./input/recentRuns.config'):
+    if os.path.exists('./input/recentRuns.config'):
         with open('./input/recentRuns.config', newline='', encoding='utf8') as f:
             csvReader = csv.DictReader(f)
             for row in csvReader:
