@@ -150,8 +150,10 @@ def select_name(surname, gender, hour, attr, name_source, wuxing_dict, difficult
     name_scores = []
     found_names = get_name_from_wuxing(gender, attr, name_source, wuxing_dict, modal_particles)
     count = 0
-    while match_count < num_of_matches and count < SEARCH_LIMIT:
-        name = found_names[random.randint(0, len(found_names) - 1)] # randomly pick a name from the matched names
+    while match_count < num_of_matches and count < SEARCH_LIMIT and count < len(found_names):
+        #name = found_names[random.randint(0, len(found_names) - 1)] # randomly pick a name from the matched names
+        name = found_names[count]   # exhaust all found names or until while condition is not met
+        count += 1
         full_name = surname + name
         # Match gender and general name word.
         if gender != ngender.guess(full_name)[0][0].upper():
@@ -160,7 +162,6 @@ def select_name(surname, gender, hour, attr, name_source, wuxing_dict, difficult
         if full_name in full_names:
             continue
         print('picked name: {}'.format(full_name))
-        count += 1
         name_vec = lazy_pinyin(name)
         letters = 0
         isHard = False
