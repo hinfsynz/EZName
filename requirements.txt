@@ -14,7 +14,7 @@ pypinyin==0.36.0
 pytz==2019.3
 query-string==2019.4.13
 request==2019.4.13
-requests==2.22.0
+requests==2.31.0
 selenium==3.141.0
 soupsieve==1.9.5
 tkcalendar==1.5.1
